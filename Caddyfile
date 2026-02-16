@@ -1,0 +1,8 @@
+:80 {
+	root * /home/laszlokopits/laz.dev/site
+	file_server
+
+	handle /api/* {
+		reverse_proxy localhost:8000
+	}
+}

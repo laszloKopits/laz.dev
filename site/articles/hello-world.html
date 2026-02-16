@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello, World - laz.dev</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1><a href="/">laz.dev</a></h1>
+      <nav>
+        <a href="/">articles</a>
+        <a href="/#subscribe">subscribe</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <article>
+      <div class="article-header">
+        <div class="article-meta">
+          <span>2026-02-16</span>
+          <div class="vote-widget" data-slug="hello-world">
+            <button class="vote-btn vote-up" onclick="vote('hello-world','up')">&#9650;</button>
+            <span class="vote-score">0</span>
+            <button class="vote-btn vote-down" onclick="vote('hello-world','down')">&#9660;</button>
+          </div>
+        </div>
+        <h1>Hello, World</h1>
+      </div>
+
+      <div class="article-body">
+        <p>This is the first post on laz.dev. You're looking at a blog built with nothing but static HTML, a few lines of CSS, and a tiny Python API for votes and email subscriptions.</p>
+
+        <h2>The stack</h2>
+
+        <p>There's no static site generator, no React, no build step. Each page is hand-written HTML served by Caddy. The interactive bits (voting, subscribing) hit a FastAPI backend that stores everything in SQLite.</p>
+
+        <pre><code>laz.dev/
+├── site/          # static HTML/CSS/JS
+├── api/main.py    # ~100 lines of Python
+└── data/laz.db    # everything in one file</code></pre>
+
+        <h2>Why monospace</h2>
+
+        <p>Monospace fonts are honest. They don't pretend to be something they're not. Every character gets the same space, the same respect. There's a quiet beauty in that regularity.</p>
+
+        <p>Plus, if you're reading a blog with code snippets in it, having the prose in the same font as the code removes that jarring context switch.</p>
+
+        <h2>What's next</h2>
+
+        <p>More posts. Probably about software, systems, and the occasional tangent. If you want to know when something new goes up, there's a subscribe box at the bottom of the homepage.</p>
+      </div>
+    </article>
+
+    <div class="subscribe-section" id="subscribe">
+      <h2>get notified</h2>
+      <p>new posts, no spam, unsubscribe whenever.</p>
+      <form class="subscribe-form" onsubmit="return false">
+        <input type="email" placeholder="you@example.com" required>
+        <button type="submit">subscribe</button>
+      </form>
+      <div class="subscribe-msg"></div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container">&copy; 2026 laz.dev</div>
+  </footer>
+
+  <script src="/script.js"></script>
+</body>
+</html>
