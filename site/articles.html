@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>articles - laz.dev</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1><a href="/">laz.dev</a></h1>
+      <nav>
+        <a href="/projects.html">projects</a>
+        <a href="/articles.html">articles</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <h2 class="page-title">articles</h2>
+
+    <ul class="article-list">
+      <li class="article-item">
+        <div class="article-meta">
+          <span>2026-02-16</span>
+          <div class="vote-widget" data-slug="hello-world">
+            <button class="vote-btn vote-up" onclick="vote('hello-world','up')">&#9650;</button>
+            <span class="vote-score">0</span>
+            <button class="vote-btn vote-down" onclick="vote('hello-world','down')">&#9660;</button>
+          </div>
+        </div>
+        <div class="article-title"><a href="/articles/hello-world.html">Hello, World</a></div>
+        <div class="article-excerpt">First post. On building this site, keeping things minimal, and why I chose a monospace font for everything.</div>
+      </li>
+    </ul>
+  </main>
+
+  <footer>
+    <div class="container">&copy; 2026 laz.dev</div>
+  </footer>
+
+  <script src="/script.js"></script>
+</body>
+</html>

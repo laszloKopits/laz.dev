@@ -11,36 +11,51 @@
     <div class="container">
       <h1><a href="/">laz.dev</a></h1>
       <nav>
-        <a href="/">articles</a>
-        <a href="#subscribe">subscribe</a>
+        <a href="/projects.html">projects</a>
+        <a href="/articles.html">articles</a>
       </nav>
     </div>
   </header>
 
   <main class="container">
-    <ul class="article-list">
-      <li class="article-item">
-        <div class="article-meta">
-          <span>2026-02-16</span>
-          <div class="vote-widget" data-slug="hello-world">
-            <button class="vote-btn vote-up" onclick="vote('hello-world','up')">&#9650;</button>
-            <span class="vote-score">0</span>
-            <button class="vote-btn vote-down" onclick="vote('hello-world','down')">&#9660;</button>
-          </div>
-        </div>
-        <div class="article-title"><a href="/articles/hello-world.html">Hello, World</a></div>
-        <div class="article-excerpt">First post. On building this site, keeping things minimal, and why I chose a monospace font for everything.</div>
-      </li>
-    </ul>
+    <div class="linktree">
+      <div class="linktree-intro">
+        <h2>Laz Kopits</h2>
+        <p class="linktree-bio">building things</p>
+      </div>
 
-    <div class="subscribe-section" id="subscribe">
-      <h2>get notified</h2>
-      <p>new posts, no spam, unsubscribe whenever.</p>
-      <form class="subscribe-form" onsubmit="return false">
-        <input type="email" placeholder="you@example.com" required>
-        <button type="submit">subscribe</button>
-      </form>
-      <div class="subscribe-msg"></div>
+      <div class="linktree-links">
+        <a href="/projects.html" class="link-card">
+          <span class="link-label">projects</span>
+          <span class="link-arrow">&rarr;</span>
+        </a>
+        <a href="/articles.html" class="link-card">
+          <span class="link-label">articles</span>
+          <span class="link-arrow">&rarr;</span>
+        </a>
+        <a href="https://www.linkedin.com/in/laszlo-kopits/" class="link-card" target="_blank" rel="noopener">
+          <span class="link-label">linkedin</span>
+          <span class="link-arrow">&nearr;</span>
+        </a>
+        <a href="https://x.com/lazkopits" class="link-card" target="_blank" rel="noopener">
+          <span class="link-label">x</span>
+          <span class="link-arrow">&nearr;</span>
+        </a>
+        <a href="https://github.com/laszloKopits" class="link-card" target="_blank" rel="noopener">
+          <span class="link-label">github</span>
+          <span class="link-arrow">&nearr;</span>
+        </a>
+      </div>
+
+      <div class="subscribe-section" id="subscribe">
+        <h2>get notified</h2>
+        <p>new posts, no spam, unsubscribe whenever.</p>
+        <form class="subscribe-form" onsubmit="return false">
+          <input type="email" placeholder="you@example.com" required>
+          <button type="submit">subscribe</button>
+        </form>
+        <div class="subscribe-msg"></div>
+      </div>
     </div>
   </main>
 
