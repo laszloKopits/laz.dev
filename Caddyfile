@@ -1,16 +1,18 @@
 laz.dev {
-	root * /home/laszlokopits/laz.dev/site
-	file_server
-
 	handle /api/* {
 		reverse_proxy localhost:8000
+	}
+
+	handle /claude-code-simulator {
+		redir /claude-code-simulator/ permanent
 	}
 
 	handle_path /claude-code-simulator/* {
 		reverse_proxy localhost:8081
 	}
 
-	handle /claude-code-simulator {
-		redir /claude-code-simulator/ permanent
+	handle {
+		root * /home/laszlokopits/laz.dev/site
+		file_server
 	}
 }
