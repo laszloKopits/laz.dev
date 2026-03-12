@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Don't call it the "humanoid" industry - laz.dev</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1><a href="/">laz.dev</a></h1>
+      <nav>
+        <a href="/projects.html">projects</a>
+        <a href="/articles.html">articles</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <article>
+      <div class="article-header">
+        <div class="article-meta">
+          <span>2026-03-06</span>
+          <div class="vote-widget" data-slug="dont-call-them-humanoids">
+            <button class="vote-btn vote-up" onclick="vote('dont-call-them-humanoids','up')">&#9650;</button>
+            <span class="vote-score">0</span>
+            <button class="vote-btn vote-down" onclick="vote('dont-call-them-humanoids','down')">&#9660;</button>
+          </div>
+        </div>
+        <h1>Don't call it the "humanoid" industry</h1>
+      </div>
+
+      <div class="article-body">
+        <p>There have been two intertwined but ultimately distinct halves of robotics throughout its history as a field.</p>
+<p>On one side you have industrial robotics: Kuka, ABB, Fanuc and the rest of the gang. They build big, powerful, but ultimately dumb robots. These are the ones that produce actual GDP, and are programmed to move repetitively between a set of predefined locations.</p>
+<p>On the other side, the field has always had some dreamers who wanted to build truly autonomous beings. The urge to build a truly general robot was around before robots themselves, and despite how hard it is, engineers have been pursuing it for decades.</p>
+<p>That&rsquo;s not to say that there&rsquo;s no interplay between these halves. Plenty of mechanical and control system advances from generalist robotics have been applied to industrial robotics, and plenty of high precision industrial robots have helped accelerate generalist robotics research. But if you go to a robotics trade show, you should clarify which half of robotics the show is for, because you&rsquo;d be surprised how well divided the field is.</p>
+<p><img alt="The traditional split in robotics" src="/articles/img/humanoids-vs-gr-split.png" /></p>
+<p>Today, when people think about the modern effort to make really awesome robots, they typically label it &ldquo;humanoid robotics&rdquo; or something similar. This is understandable, as most of the major labs building in this field are in fact building things that look an awful lot like humans. Many people then see the traditional split in robotics and say that humanoids go in the general-purpose camp, and anything that doesn&rsquo;t look like a humanoid goes into the industrial side.</p>
+<p>I argue that these are in fact completely orthogonal axes, and that the humanoid form factor is not the goal, but a means to an end.</p>
+<p><img alt="Form factor vs. purpose: a quadrant view" src="/articles/img/humanoids-vs-gr-quadrant.png" /></p>
+<p>When you ask a humanoid robotics engineer why they&rsquo;re building a humanoid, their argument can typically be boiled down to one of a couple different points (ranked by how often I hear them).</p>
+<ol>
+<li><strong>We&rsquo;ve built our environments around our bodies.</strong> All of the tasks that we have access to were implicitly or explicitly designed to accommodate the human form factor. Our size, dexterity, and capabilities are taken into account when we build doorways, tables, machinery, etc. Therefore, in order for robots to work in our world, they need to follow these same requirements.</li>
+<li><strong>Humans are general-purpose machines.</strong> We are the only thing that has successfully been able to do such a wide variety of tasks, so it stands to reason that any robot we build should probably just copy the only existence proof of a general-purpose machine.</li>
+<li><strong>Training data comes from humans.</strong> You could theoretically make all sorts of robots that are general purpose if there was a theoretically perfect control system. However in the real world, your robot&rsquo;s controller needs training data, and the only animal you can convince to collect training data is a human. If I could pay gibbons to collect egocentric welding data, I would be building robot gibbons instead.</li>
+</ol>
+<p>Ultimately, I&rsquo;m only really convinced by the third argument, but I sympathize with the first two. My point though, is that only a narrow group of people should actually strive to build robots that look like humans (ultimately entertainment / interaction robots). For the rest of the field, building something that looks like a human is a means to an end. Many believe that the bottom right quadrant on the above graph is an impossible space to be in, and therefore, most are building in the top right quadrant.</p>
+<p>Because of this, I use the term &ldquo;G.P.R.&rdquo; or &ldquo;General purpose robotics&rdquo; instead of &ldquo;humanoid robotics&rdquo;. I believe it better represents the long-term goal of what we&rsquo;re working on. We&rsquo;re not trying to build humanoids for the sake of it. We&rsquo;re trying to build the one machine that can do everything in order to get superlinear productivity gains out of hardware.</p>
+<p>If you believe in nominative determinism, I encourage you to think about what you call this industry. The humanoid industry might build some pretty cool looking robots, but G.P.R. will change the world.</p>
+      </div>
+    </article>
+
+    <div class="subscribe-section" id="subscribe">
+      <h2>get notified</h2>
+      <p>new posts, no spam, unsubscribe whenever.</p>
+      <form class="subscribe-form" onsubmit="return false">
+        <input type="email" placeholder="you@example.com" required>
+        <button type="submit">subscribe</button>
+      </form>
+      <div class="subscribe-msg"></div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container">&copy; 2026 laz.dev</div>
+  </footer>
+
+  <script src="/script.js"></script>
+</body>
+</html>
