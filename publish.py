@@ -23,7 +23,8 @@ Each draft needs YAML frontmatter:
 import os
 import re
 import sys
-from datetime import date
+from datetime import date, datetime
+from email.utils import format_datetime
 from pathlib import Path
 
 import markdown
@@ -32,6 +33,7 @@ VAULT_DRAFTS = Path.home() / "vault" / "project-cards" / "laz-dev" / "drafts"
 SITE_DIR = Path.home() / "projects" / "laz-dev" / "site"
 ARTICLES_DIR = SITE_DIR / "articles"
 ARTICLES_PAGE = SITE_DIR / "articles.html"
+RSS_PATH = SITE_DIR / "feed.xml"
 SSH_HOST = "lazdev-gcloud"  # ~/.ssh/config alias
 
 ARTICLE_TEMPLATE = """\
@@ -40,7 +42,18 @@ ARTICLE_TEMPLATE = """\
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{title} - laz.dev</title>
+  <title>{title_raw} - laz.dev</title>
+  <meta name="description" content="{excerpt}">
+  <meta property="og:title" content="{title}">
+  <meta property="og:description" content="{excerpt}">
+  <meta property="og:url" content="https://laz.dev/articles/{slug}.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="laz.dev">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{title}">
+  <meta name="twitter:description" content="{excerpt}">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="alternate" type="application/rss+xml" title="laz.dev" href="/feed.xml">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -65,7 +78,7 @@ ARTICLE_TEMPLATE = """\
             <button class="vote-btn vote-down" onclick="vote('{slug}','down')">&#9660;</button>
           </div>
         </div>
-        <h1>{title}</h1>
+        <h1>{title_raw}</h1>
       </div>
 
       <div class="article-body">
@@ -78,6 +91,7 @@ ARTICLE_TEMPLATE = """\
       <p>new posts, no spam, unsubscribe whenever.</p>
       <form class="subscribe-form" onsubmit="return false">
         <input type="email" placeholder="you@example.com" required>
+        <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px">
         <button type="submit">subscribe</button>
       </form>
       <div class="subscribe-msg"></div>
@@ -118,7 +132,13 @@ def parse_frontmatter(text):
     for line in match.group(1).strip().split('\n'):
         if ':' in line:
             key, val = line.split(':', 1)
-            meta[key.strip()] = val.strip().strip('"').strip("'")
+            raw = val.strip()
+            # Strip outer quotes, then unescape inner escaped quotes
+            if (raw.startswith('"') and raw.endswith('"')):
+                raw = raw[1:-1].replace('\\"', '"')
+            elif (raw.startswith("'") and raw.endswith("'")):
+                raw = raw[1:-1]
+            meta[key.strip()] = raw
     return meta, match.group(2)
 
 
@@ -149,15 +169,22 @@ def get_drafts(slug_filter=None):
     return drafts
 
 
+def _html_attr(s):
+    """Escape a string for use in an HTML attribute value."""
+    return s.replace('&', '&amp;').replace('"', '&quot;').replace('<', '&lt;').replace('>', '&gt;')
+
+
 def build_article(meta):
     """Convert a draft's markdown body to a full HTML article page."""
     md = markdown.Markdown(extensions=['fenced_code', 'tables', 'smarty'])
     body_html = md.convert(meta['body_md'])
 
     html = ARTICLE_TEMPLATE.format(
-        title=meta['title'],
+        title=_html_attr(meta['title']),
+        title_raw=meta['title'],
         date=meta['date'],
         slug=meta['slug'],
+        excerpt=_html_attr(meta.get('excerpt', '')),
         body=body_html,
         year=date.today().year,
     )
@@ -173,6 +200,7 @@ def rebuild_articles_page(all_articles):
     """Regenerate articles.html with all articles sorted newest first.
 
     Reads existing articles from the listing page and merges with new ones.
+    Returns the merged sorted list for use by RSS generation.
     """
     # Parse existing articles from the listing page
     existing = {}
@@ -219,6 +247,14 @@ def rebuild_articles_page(all_articles):
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>articles - laz.dev</title>
+  <meta name="description" content="Essays on robotics, AI, and building things.">
+  <meta property="og:title" content="articles - laz.dev">
+  <meta property="og:description" content="Essays on robotics, AI, and building things.">
+  <meta property="og:url" content="https://laz.dev/articles.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="laz.dev">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="alternate" type="application/rss+xml" title="laz.dev" href="/feed.xml">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -250,6 +286,45 @@ def rebuild_articles_page(all_articles):
 """
     ARTICLES_PAGE.write_text(page_html)
     print(f"  updated articles.html ({len(sorted_articles)} articles)")
+    return sorted_articles
+
+
+def build_rss(all_articles):
+    """Generate RSS 2.0 feed from all articles."""
+    import html as html_mod
+
+    items_xml = []
+    for a in all_articles:
+        # Parse date string to RFC 822
+        try:
+            dt = datetime.strptime(a.get('date', ''), '%Y-%m-%d')
+            pub_date = format_datetime(dt)
+        except ValueError:
+            pub_date = ''
+
+        link = f"https://laz.dev/articles/{a['slug']}.html"
+        items_xml.append(f"""    <item>
+      <title>{html_mod.escape(a.get('title', ''))}</title>
+      <link>{link}</link>
+      <description>{html_mod.escape(a.get('excerpt', ''))}</description>
+      <pubDate>{pub_date}</pubDate>
+      <guid>{link}</guid>
+    </item>""")
+
+    rss = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>laz.dev</title>
+    <link>https://laz.dev</link>
+    <description>Essays by Laz Kopits</description>
+    <language>en-us</language>
+    <lastBuildDate>{format_datetime(datetime.now())}</lastBuildDate>
+{chr(10).join(items_xml)}
+  </channel>
+</rss>
+"""
+    RSS_PATH.write_text(rss)
+    print(f"  wrote feed.xml ({len(all_articles)} items)")
 
 
 def cmd_build(slug_filter=None):
@@ -263,18 +338,19 @@ def cmd_build(slug_filter=None):
     for meta in drafts:
         built.append(build_article(meta))
 
-    rebuild_articles_page(built)
+    sorted_articles = rebuild_articles_page(built)
+    build_rss(sorted_articles)
     print(f"done. {len(built)} article(s) built.")
     return built
 
 
-def cmd_deploy():
+def cmd_deploy(built_articles=None):
     print("deploying...")
     project_dir = Path.home() / "projects" / "laz-dev"
     os.chdir(project_dir)
 
     # Stage, commit, push
-    os.system("git add site/articles/ site/articles.html")
+    os.system("git add site/articles/ site/articles.html site/feed.xml")
     ret = os.system('git diff --cached --quiet')
     if ret == 0:
         print("  nothing to commit")
@@ -288,6 +364,19 @@ def cmd_deploy():
     if ret != 0:
         print("  SSH deploy failed — you may need to set up the SSH key first")
         return False
+
+    # Notify subscribers for each new article
+    if built_articles:
+        print("  notifying subscribers...")
+        for article in built_articles:
+            slug = article['slug']
+            title = article['title'].replace("'", "'\\''")
+            excerpt = article.get('excerpt', '').replace("'", "'\\''")
+            os.system(
+                f'ssh {SSH_HOST} \'curl -s -X POST http://localhost:8000/api/notify '
+                f'-H "Content-Type: application/json" '
+                f"""-d \'{{"slug": "{slug}", "title": "{title}", "excerpt": "{excerpt}"}}\'\' """
+            )
 
     print("deployed.")
     return True
@@ -308,7 +397,7 @@ def main():
     elif cmd == "go":
         built = cmd_build(slug)
         if built:
-            cmd_deploy()
+            cmd_deploy(built_articles=built)
     else:
         print(f"unknown command: {cmd}")
         print(__doc__)

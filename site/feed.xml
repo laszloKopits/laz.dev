@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>laz.dev</title>
+    <link>https://laz.dev</link>
+    <description>Essays by Laz Kopits</description>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 12 Mar 2026 11:29:01 -0000</lastBuildDate>
+    <item>
+      <title>Don&#x27;t call it the &quot;humanoid&quot; industry</title>
+      <link>https://laz.dev/articles/dont-call-them-humanoids.html</link>
+      <description>&quot;Humanoid robotics&quot; is a misnomer. The goal isn&#x27;t to build humanoids — it&#x27;s to build general-purpose robots. The form factor is a means, not an end.</description>
+      <pubDate>Fri, 06 Mar 2026 00:00:00 -0000</pubDate>
+      <guid>https://laz.dev/articles/dont-call-them-humanoids.html</guid>
+    </item>
+  </channel>
+</rss>

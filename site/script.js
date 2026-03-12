@@ -50,7 +50,7 @@ async function subscribe(form) {
     const res = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email, website: form.querySelector('.hp-field')?.value || undefined })
     });
     const data = await res.json();
     if (data.ok) {
