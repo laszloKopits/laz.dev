@@ -19,6 +19,7 @@ if [ ! -f /etc/systemd/system/escape-the-sandbox.service ]; then
   sudo systemctl enable escape-the-sandbox
 fi
 
+sudo cp Caddyfile /etc/caddy/Caddyfile
 sudo systemctl restart laz-api
 sudo systemctl restart escape-the-sandbox
 sudo systemctl reload caddy
