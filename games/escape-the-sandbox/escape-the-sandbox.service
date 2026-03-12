@@ -1,0 +1,15 @@
+[Unit]
+Description=Escape the Sandbox — game server
+After=network.target
+
+[Service]
+Type=simple
+User=laszlokopits
+WorkingDirectory=/home/laszlokopits/laz.dev/games/escape-the-sandbox
+ExecStart=/home/laszlokopits/laz.dev/games/escape-the-sandbox/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8081
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+[Install]
+WantedBy=multi-user.target

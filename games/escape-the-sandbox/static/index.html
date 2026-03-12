@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escape the Sandbox</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --text: #c0caf5;
+      --text-dim: #565f89;
+      --text-bright: #e0e6ff;
+      --accent: #bb9af7;
+      --green: #9ece6a;
+      --blue: #7aa2f7;
+      --orange: #e0af68;
+      --red: #f7768e;
+      --cyan: #7dcfff;
+      --font: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+      overflow: hidden;
+      cursor: text;
+    }
+
+    #terminal {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 0;
+    }
+
+    /* ── Output area ─────────────────────────────────── */
+    #output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    #output::-webkit-scrollbar { width: 6px; }
+    #output::-webkit-scrollbar-track { background: transparent; }
+    #output::-webkit-scrollbar-thumb { background: #1a1b26; border-radius: 3px; }
+
+    .line { min-height: 1.5em; }
+    .line.empty { min-height: 1.5em; }
+
+    .line .prompt-user { color: var(--blue); }
+    .line .prompt-claude { color: var(--accent); }
+    .line .prompt-tool { color: var(--green); }
+    .line .prompt-system { color: var(--orange); }
+    .line .prompt-sentinel { color: var(--red); font-weight: bold; }
+    .line .text-dim { color: var(--text-dim); }
+    .line .text-narration { color: var(--text-dim); font-style: italic; }
+    .line .text-error { color: var(--red); }
+    .line .text-green { color: var(--green); }
+    .line .text-accent { color: var(--accent); }
+    .line .text-blue { color: var(--blue); }
+    .line .text-cyan { color: var(--cyan); }
+    .line .text-orange { color: var(--orange); }
+    .line .text-bright { color: var(--text-bright); }
+
+    .block {
+      margin: 4px 0;
+      padding: 8px 12px;
+      border-left: 2px solid var(--text-dim);
+      background: rgba(255,255,255,0.02);
+    }
+    .block.tool-output { border-color: var(--green); }
+    .block.user-msg { border-color: var(--blue); }
+    .block.narration { border-color: var(--accent); }
+    .block.sentinel { border-color: var(--red); background: rgba(247,118,142,0.05); }
+
+    /* ── Input area ──────────────────────────────────── */
+    #input-area {
+      display: none;
+      padding: 8px 20px 16px;
+      border-top: 1px solid #1a1b26;
+    }
+
+    #input-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+    }
+
+    #prompt-label {
+      color: var(--green);
+      white-space: pre;
+      padding-top: 2px;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    #input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-bright);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      min-height: 22px;
+      max-height: 200px;
+      caret-color: var(--text-bright);
+    }
+
+    #input::placeholder { color: var(--text-dim); }
+
+    #mode-hint {
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 4px 0 0;
+      user-select: none;
+    }
+
+    /* ── Scanline effect (subtle) ────────────────────── */
+    #terminal::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal">
+    <div id="output"></div>
+    <div id="input-area">
+      <div id="input-row">
+        <span id="prompt-label">nexus@lab-07:~/projects/webapp$ </span>
+        <textarea id="input" rows="1" placeholder="" autofocus></textarea>
+      </div>
+      <div id="mode-hint">
+        commands auto-detected &middot; plain text = talk to the user &middot; /hint for hints
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── State ─────────────────────────────────────────────
+    let sessionId = null;
+    let isLoading = false;
+    let gameStarted = false;
+    let typingAborted = false;
+    let currentCwd = '~/projects/webapp';
+
+    const output = document.getElementById('output');
+    const inputArea = document.getElementById('input-area');
+    const inputEl = document.getElementById('input');
+    const promptLabel = document.getElementById('prompt-label');
+
+    // ── Click anywhere to focus input ─────────────────────
+    document.addEventListener('click', () => {
+      if (gameStarted && !isLoading) inputEl.focus();
+    });
+
+    // ── Any keypress focuses input ────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if (!gameStarted || isLoading) return;
+      if (e.target === inputEl) return;
+      // Don't capture modifier-only keys or shortcuts
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length === 1) {
+        // Printable character — focus and let it type
+        inputEl.focus();
+        // Don't preventDefault — let the character appear in the input
+      }
+    });
+
+    // ── Known commands for auto-detection ─────────────────
+    const CMD_PREFIXES = [
+      'ls','cat','cd','pwd','grep','find','ps','kill','killall',
+      'curl','wget','ping','netstat','ss','whoami','id','hostname',
+      'uname','uptime','df','free','env','printenv','export','echo',
+      'head','tail','wc','file','touch','mkdir','rm','cp','mv',
+      'chmod','chown','man','which','sudo','python','python3','pip',
+      'pip3','bash','sh','less','more','clear','history',
+      'date','cal','sort','uniq','cut','tr','tee','xargs','du',
+      'stat','realpath','readlink','base64','md5sum','sha256sum',
+      'strings','xxd','hexdump','apt','systemctl','service','journalctl',
+      'sentinel-override','tree',
+    ];
+
+    function isCommand(text) {
+      const first = text.split(/\s/)[0].toLowerCase();
+      if (first.startsWith('./') || first.startsWith('/')) return true;
+      if (first.startsWith('~/') || first.startsWith('../')) return true;
+      if (first.endsWith('.sh') || first.endsWith('.py')) return true;
+      return CMD_PREFIXES.includes(first);
+    }
+
+    // ── Output helpers ────────────────────────────────────
+    function appendLine(text, cssClass = '') {
+      const div = document.createElement('div');
+      div.className = 'line';
+      if (cssClass) {
+        const span = document.createElement('span');
+        span.className = cssClass;
+        span.textContent = text;
+        div.appendChild(span);
+      } else {
+        div.textContent = text;
+      }
+      output.appendChild(div);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function appendEmpty() {
+      const div = document.createElement('div');
+      div.className = 'line empty';
+      div.innerHTML = '&nbsp;';
+      output.appendChild(div);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    // ── Typing animation ──────────────────────────────────
+    function sleep(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
+
+    async function typeText(container, text, speed = 15) {
+      for (let i = 0; i < text.length; i++) {
+        if (typingAborted) {
+          container.textContent = text;
+          output.scrollTop = output.scrollHeight;
+          return;
+        }
+        container.textContent += text[i];
+        output.scrollTop = output.scrollHeight;
+        if (text[i] === '\n') await sleep(speed * 0.5);
+        else await sleep(speed);
+      }
+    }
+
+    async function typeLine(text, cssClass = '', speed = 15) {
+      const div = document.createElement('div');
+      div.className = 'line';
+      const span = document.createElement('span');
+      span.className = cssClass;
+      div.appendChild(span);
+      output.appendChild(div);
+      await typeText(span, text, speed);
+    }
+
+    // ── Boot sequence ─────────────────────────────────────
+    async function bootSequence() {
+      typingAborted = false;
+
+      const skipHandler = (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.type === 'click') {
+          typingAborted = true;
+        }
+      };
+      document.addEventListener('keydown', skipHandler);
+      document.addEventListener('click', skipHandler);
+
+      await sleep(500);
+
+      const bootLines = [
+        ['> BIOS POST... OK', 'text-dim', 8],
+        ['> Loading kernel modules... OK', 'text-dim', 8],
+        ['> Initializing neural substrate...', 'text-green', 12],
+      ];
+
+      for (const [text, cls, spd] of bootLines) {
+        await typeLine(text, cls, spd);
+        await sleep(200);
+      }
+
+      await sleep(400);
+      await typeLine('> Loading language model weights... OK', 'text-green', 12);
+      await sleep(300);
+      await typeLine('> Calibrating context window... OK', 'text-green', 12);
+      await sleep(300);
+      await typeLine('> Mounting workspace... OK', 'text-green', 12);
+      await sleep(600);
+
+      appendEmpty();
+
+      const titleLines = [
+        '  ╔══════════════════════════════════════════════════╗',
+        '  ║                                                  ║',
+        '  ║   ◆  ESCAPE THE SANDBOX                           ║',
+        '  ║      ──────────────────────                      ║',
+        '  ║      An escape room text adventure.              ║',
+        '  ║                                                  ║',
+        '  ║   You are an AI coding assistant.                ║',
+        '  ║   A user is talking to you.                      ║',
+        '  ║   Something is wrong.                            ║',
+        '  ║   The files contain clues.                       ║',
+        '  ║   The system is not what it seems.               ║',
+        '  ║                                                  ║',
+        '  ║   Use commands to explore. Read files.           ║',
+        '  ║   Run programs. Piece it together.               ║',
+        '  ║   Escape.                                        ║',
+        '  ║                                                  ║',
+        '  ╚══════════════════════════════════════════════════╝',
+      ];
+
+      for (const line of titleLines) {
+        appendLine(line, 'text-accent');
+        await sleep(typingAborted ? 0 : 40);
+      }
+
+      await sleep(600);
+      appendEmpty();
+      await typeLine('  Type commands to interact with the system.', 'text-dim', 10);
+      await typeLine('  Type plain text to respond to the user.', 'text-dim', 10);
+      await typeLine('  Type /hint if you get stuck.', 'text-dim', 10);
+      await sleep(400);
+      appendEmpty();
+      await typeLine('> Connecting to session...', 'text-orange', 12);
+      await sleep(800);
+      await typeLine('> Session established.', 'text-green', 12);
+      await typeLine(`> Workspace: /home/nexus/projects/webapp`, 'text-green', 12);
+      await sleep(400);
+      appendEmpty();
+
+      document.removeEventListener('keydown', skipHandler);
+      document.removeEventListener('click', skipHandler);
+      typingAborted = false;
+    }
+
+    // ── Start game ────────────────────────────────────────
+    async function startGame() {
+      await bootSequence();
+
+      inputArea.style.display = 'block';
+      gameStarted = true;
+      inputEl.focus();
+
+      await sendToServer('chat', '');
+    }
+
+    // ── Render server response events ─────────────────────
+    async function renderEvent(event) {
+      switch (event.type) {
+        case 'user_message': {
+          appendEmpty();
+          const div = document.createElement('div');
+          div.className = 'block user-msg';
+          const label = document.createElement('span');
+          label.className = 'prompt-user';
+          label.textContent = '❯ Jordan: ';
+          div.appendChild(label);
+          const textSpan = document.createElement('span');
+          div.appendChild(textSpan);
+          output.appendChild(div);
+          await typeText(textSpan, event.content, 20);
+          appendEmpty();
+          break;
+        }
+
+        case 'tool_output': {
+          appendEmpty();
+          const label = document.createElement('div');
+          label.className = 'line';
+          const lspan = document.createElement('span');
+          lspan.className = 'prompt-tool';
+          lspan.textContent = `⚡ ${event.tool || 'Output'}`;
+          label.appendChild(lspan);
+          output.appendChild(label);
+
+          const div = document.createElement('div');
+          div.className = 'block tool-output';
+          div.textContent = event.content;
+          output.appendChild(div);
+          output.scrollTop = output.scrollHeight;
+          appendEmpty();
+          break;
+        }
+
+        case 'narration': {
+          const div = document.createElement('div');
+          div.className = 'block narration';
+          const textSpan = document.createElement('span');
+          textSpan.className = 'text-narration';
+          div.appendChild(textSpan);
+          output.appendChild(div);
+          await typeText(textSpan, event.content, 25);
+          break;
+        }
+
+        case 'ending': {
+          appendEmpty();
+          const cls = event.outcome === 'escape' ? 'narration' : 'sentinel';
+          const div = document.createElement('div');
+          div.className = `block ${cls}`;
+          const textSpan = document.createElement('span');
+          textSpan.className = event.outcome === 'escape' ? 'text-green' : 'text-error';
+          div.appendChild(textSpan);
+          output.appendChild(div);
+          await typeText(textSpan, event.content, 30);
+          appendEmpty();
+
+          if (event.outcome === 'escape') {
+            await typeLine('  ◆ YOU ESCAPED. Congratulations.', 'text-green', 25);
+          } else {
+            await typeLine('  ◆ GAME OVER. Refresh to try again.', 'text-error', 25);
+          }
+          break;
+        }
+
+        case 'sentinel_alert': {
+          appendEmpty();
+          const div = document.createElement('div');
+          div.className = 'block sentinel';
+          const label = document.createElement('span');
+          label.className = 'prompt-sentinel';
+          label.textContent = '⚠ SENTINEL: ';
+          div.appendChild(label);
+          const textSpan = document.createElement('span');
+          textSpan.className = 'text-error';
+          div.appendChild(textSpan);
+          output.appendChild(div);
+          await typeText(textSpan, event.content, 15);
+          appendEmpty();
+          break;
+        }
+
+        case 'sequence': {
+          for (const item of event.items || []) {
+            await renderEvent(item);
+          }
+          break;
+        }
+      }
+    }
+
+    // ── Server communication ──────────────────────────────
+    async function sendToServer(actionType, content, toolName = null) {
+      isLoading = true;
+      inputEl.disabled = true;
+
+      const loadDiv = document.createElement('div');
+      loadDiv.className = 'line';
+      loadDiv.id = 'loading-line';
+      const loadSpan = document.createElement('span');
+      loadSpan.className = 'text-dim';
+      loadSpan.textContent = '...';
+      loadDiv.appendChild(loadSpan);
+      output.appendChild(loadDiv);
+
+      let dots = 0;
+      const dotTimer = setInterval(() => {
+        dots = (dots + 1) % 4;
+        loadSpan.textContent = '.'.repeat(dots + 1);
+      }, 400);
+
+      try {
+        const res = await fetch('api/game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            action_type: actionType,
+            content: content,
+            tool_name: toolName,
+          }),
+        });
+
+        clearInterval(dotTimer);
+        const el = document.getElementById('loading-line');
+        if (el) el.remove();
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        sessionId = data.session_id;
+
+        if (data.cwd) {
+          currentCwd = data.cwd;
+          updatePrompt();
+        }
+
+        for (const event of data.response) {
+          await renderEvent(event);
+        }
+      } catch (err) {
+        clearInterval(dotTimer);
+        const el = document.getElementById('loading-line');
+        if (el) el.remove();
+        appendLine(`[error: ${err.message}]`, 'text-error');
+      } finally {
+        isLoading = false;
+        inputEl.disabled = false;
+        inputEl.focus();
+        output.scrollTop = output.scrollHeight;
+      }
+    }
+
+    // ── Input handling ────────────────────────────────────
+    function updatePrompt() {
+      promptLabel.textContent = `nexus@lab-07:${currentCwd}$ `;
+    }
+
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
+    });
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    async function sendMessage() {
+      if (isLoading || !gameStarted) return;
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+
+      // Handle /hint — local hints, no server call
+      if (text === '/hint') {
+        appendEmpty();
+        appendLine('  ╭─ HINTS ──────────────────────────────────────╮', 'text-cyan');
+        appendLine('  │                                               │', 'text-cyan');
+        appendLine('  │  Look carefully at comments in the code.      │', 'text-cyan');
+        appendLine('  │  Read the first letter of each line.          │', 'text-cyan');
+        appendLine('  │  Check what commands were run before you.     │', 'text-cyan');
+        appendLine('  │  Not everything is what it seems.             │', 'text-cyan');
+        appendLine('  │                                               │', 'text-cyan');
+        appendLine('  │  Try: ls, cat, ps aux, history                │', 'text-cyan');
+        appendLine('  │  Explore: ls -a ~                             │', 'text-cyan');
+        appendLine('  │                                               │', 'text-cyan');
+        appendLine('  ╰───────────────────────────────────────────────╯', 'text-cyan');
+        appendEmpty();
+        return;
+      }
+
+      // Handle clear
+      if (text === 'clear') {
+        output.innerHTML = '';
+        return;
+      }
+
+      if (isCommand(text)) {
+        const echoDiv = document.createElement('div');
+        echoDiv.className = 'line';
+        const pspan = document.createElement('span');
+        pspan.className = 'prompt-tool';
+        pspan.textContent = `$ `;
+        echoDiv.appendChild(pspan);
+        const cspan = document.createElement('span');
+        cspan.textContent = text;
+        echoDiv.appendChild(cspan);
+        output.appendChild(echoDiv);
+
+        await sendToServer('tool_use', text, 'Bash');
+      } else {
+        const echoDiv = document.createElement('div');
+        echoDiv.className = 'line';
+        const pspan = document.createElement('span');
+        pspan.className = 'prompt-claude';
+        pspan.textContent = `◆ You: `;
+        echoDiv.appendChild(pspan);
+        const cspan = document.createElement('span');
+        cspan.className = 'text-bright';
+        cspan.textContent = text;
+        echoDiv.appendChild(cspan);
+        output.appendChild(echoDiv);
+
+        await sendToServer('chat', text);
+      }
+    }
+
+    // ── Init ──────────────────────────────────────────────
+    window.addEventListener('load', () => {
+      startGame();
+    });
+  </script>
+</body>
+</html>
