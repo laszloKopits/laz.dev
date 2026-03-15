@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platooned Taxis as Trains</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0e17;
+    color: #e0e6f0;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* ── UI Overlay ─────────────────────────────────── */
+  #ui {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  #ui > * { pointer-events: auto; }
+
+  #title-bar {
+    position: absolute;
+    top: 16px; left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #title-bar h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #4ADE80;
+    text-shadow: 0 0 24px rgba(74,222,128,0.3);
+  }
+
+  #title-bar .subtitle {
+    font-size: 11px;
+    font-weight: 300;
+    color: #475569;
+    margin-top: 3px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+  }
+
+  /* Stats panel */
+  #stats {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: rgba(10,14,23,0.88);
+    border: 1px solid rgba(74,222,128,0.12);
+    border-radius: 10px;
+    padding: 14px 18px;
+    min-width: 190px;
+    backdrop-filter: blur(12px);
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+
+  .stat-label { color: #475569; font-weight: 400; }
+
+  .stat-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #cbd5e1;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  .stat-value.green { color: #4ADE80; }
+  .stat-value.amber { color: #FBBF24; }
+
+  .stat-divider {
+    border: none;
+    border-top: 1px solid rgba(71,85,105,0.2);
+    margin: 6px 0;
+  }
+
+  /* Controls */
+  #controls {
+    position: absolute;
+    bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    background: rgba(10,14,23,0.88);
+    border: 1px solid rgba(74,222,128,0.12);
+    border-radius: 10px;
+    padding: 10px 18px;
+    backdrop-filter: blur(12px);
+  }
+
+  .btn {
+    background: rgba(74,222,128,0.08);
+    border: 1px solid rgba(74,222,128,0.25);
+    color: #4ADE80;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { background: rgba(74,222,128,0.2); border-color: #4ADE80; }
+  .btn.on { background: #4ADE80; color: #0a0e17; }
+
+  .slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .slider-group label {
+    font-size: 9px;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .slider-group input[type=range] {
+    width: 90px;
+    accent-color: #4ADE80;
+    height: 16px;
+  }
+
+  /* Legend */
+  #legend {
+    position: absolute;
+    bottom: 16px; right: 16px;
+    background: rgba(10,14,23,0.88);
+    border: 1px solid rgba(74,222,128,0.12);
+    border-radius: 10px;
+    padding: 10px 14px;
+    backdrop-filter: blur(12px);
+    font-size: 11px;
+    color: #64748b;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Insight */
+  #insight {
+    position: absolute;
+    bottom: 68px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    font-weight: 300;
+    color: #334155;
+    font-style: italic;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <div id="title-bar">
+    <h1>PLATOONED TAXIS AS TRAINS</h1>
+    <div class="subtitle">What if your Waymo could become a train?</div>
+  </div>
+
+  <div id="stats">
+    <div class="stat-row">
+      <span class="stat-label">Vehicles</span>
+      <span class="stat-value" id="s-cars">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Active Platoons</span>
+      <span class="stat-value green" id="s-platoons">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Avg Platoon Size</span>
+      <span class="stat-value green" id="s-avg">&mdash;</span>
+    </div>
+    <hr class="stat-divider">
+    <div class="stat-row">
+      <span class="stat-label">Cars Platooned</span>
+      <span class="stat-value" id="s-pct">0%</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Road Space Saved</span>
+      <span class="stat-value amber" id="s-saved">0%</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Trips Completed</span>
+      <span class="stat-value" id="s-trips">0</span>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button class="btn on" id="btn-pp" onclick="togglePause()">&#9654; Play</button>
+    <div class="slider-group">
+      <label>Speed</label>
+      <input type="range" id="sl-speed" min="0.25" max="4" step="0.25" value="1">
+    </div>
+    <button class="btn" onclick="addCars(5)">+ 5</button>
+    <button class="btn" onclick="addCars(15)">+ 15</button>
+    <div class="slider-group">
+      <label>Target Cars</label>
+      <input type="range" id="sl-density" min="8" max="100" step="1" value="30">
+    </div>
+  </div>
+
+  <div id="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div>Solo taxi</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4ADE80"></div>Platooned taxi</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FBBF24;opacity:.6"></div>Destination</div>
+  </div>
+
+  <div id="insight">Autonomous taxis dynamically form virtual trains on existing roads</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  PLATOONED TAXIS AS TRAINS — Interactive City Simulation
+// ════════════════════════════════════════════════════════════
+'use strict';
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// ── Config ──────────────────────────────────────────────────
+const CELL = 56;
+const ROAD_W = 26;       // visual road width in px
+const CAR_L = 16;
+const CAR_W = 9;
+const BASE_SPEED = 1.6;
+const SOLO_GAP = 28;
+const PLATOON_GAP = 5;
+const PLATOON_RANGE = 100;
+const PLATOON_SHARED = 3;
+
+// Adaptive grid
+let COLS = 12, ROWS = 8;
+let ox = 0, oy = 0;      // grid pixel offset
+let dpr = 1;
+
+// Colors
+const COL = {
+  bg:       '#0a0e17',
+  block:    '#0d1220',
+  road:     '#111827',
+  lane:     'rgba(55,65,85,0.25)',
+  center:   'rgba(251,191,36,0.08)',
+  solo:     '#38bdf8',
+  soloG:    'rgba(56,189,248,0.18)',
+  plat:     '#4ADE80',
+  platG:    'rgba(74,222,128,0.22)',
+  link:     'rgba(74,222,128,0.45)',
+  linkGlow: 'rgba(74,222,128,0.10)',
+  dest:     'rgba(251,191,36,0.5)',
+};
+
+// ── State ───────────────────────────────────────────────────
+let paused = false;
+let speedMul = 1;
+let cars = [];
+let platoons = [];        // { id, members: [car…] }
+let platIdSeq = 0;
+let carIdSeq = 0;
+let trips = 0;
+let tick = 0;
+
+// Road topology — fixed spacing
+const roadColSet = new Set();
+const roadRowSet = new Set();
+function buildGrid() {
+  roadColSet.clear(); roadRowSet.clear();
+  for (let c = 2; c < COLS; c += 3) roadColSet.add(c);
+  for (let r = 2; r < ROWS; r += 3) roadRowSet.add(r);
+}
+
+function isRoad(c, r) {
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return false;
+  return roadColSet.has(c) || roadRowSet.has(r);
+}
+function isIntersection(c, r) { return roadColSet.has(c) && roadRowSet.has(r); }
+
+function cellCenter(c, r) {
+  return { x: ox + c * CELL + CELL / 2, y: oy + r * CELL + CELL / 2 };
+}
+
+// All road cells (cached)
+let roadCells = [];
+function cacheRoadCells() {
+  roadCells = [];
+  for (let c = 0; c < COLS; c++)
+    for (let r = 0; r < ROWS; r++)
+      if (isRoad(c, r)) roadCells.push([c, r]);
+}
+function randRoad() { return roadCells[(Math.random() * roadCells.length) | 0]; }
+
+// ── A* ──────────────────────────────────────────────────────
+function neighbors(c, r) {
+  const out = [];
+  for (const [dc, dr] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+    const nc = c + dc, nr = r + dr;
+    if (isRoad(nc, nr)) out.push([nc, nr]);
+  }
+  return out;
+}
+
+function astar(s, e) {
+  if (s[0] === e[0] && s[1] === e[1]) return null;
+  const key = (c, r) => (c << 8) | r;
+  const sk = key(...s), ek = key(...e);
+  const g = new Map([[sk, 0]]);
+  const from = new Map();
+  // min-heap via array
+  const open = [[Math.abs(s[0]-e[0])+Math.abs(s[1]-e[1]), 0, s]]; // [f, g, node]
+
+  while (open.length) {
+    open.sort((a, b) => a[0] - b[0]);
+    const [, cg, cur] = open.shift();
+    const ck = key(...cur);
+    if (ck === ek) {
+      const path = [cur];
+      let k = ck;
+      while (from.has(k)) { const p = from.get(k); path.unshift(p); k = key(...p); }
+      return path;
+    }
+    if (cg > (g.get(ck) ?? Infinity)) continue;
+    for (const [nc, nr] of neighbors(...cur)) {
+      const ng = cg + 1;
+      const nk = key(nc, nr);
+      if (ng < (g.get(nk) ?? Infinity)) {
+        g.set(nk, ng);
+        from.set(nk, cur);
+        open.push([ng + Math.abs(nc-e[0]) + Math.abs(nr-e[1]), ng, [nc, nr]]);
+      }
+    }
+  }
+  return null;
+}
+
+// ── Car ─────────────────────────────────────────────────────
+function spawnCar() {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const o = randRoad(), d = randRoad();
+    if (o[0] === d[0] && o[1] === d[1]) continue;
+    const path = astar(o, d);
+    if (!path || path.length < 3) continue;
+    const p = cellCenter(...o);
+    return {
+      id: carIdSeq++, x: p.x, y: p.y, angle: 0,
+      path, pi: 0, dest: d, platId: null, arriving: false,
+    };
+  }
+  return null;
+}
+
+function resetCar(car) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const o = randRoad(), d = randRoad();
+    if (o[0] === d[0] && o[1] === d[1]) continue;
+    const path = astar(o, d);
+    if (!path || path.length < 3) continue;
+    const p = cellCenter(...o);
+    Object.assign(car, { x: p.x, y: p.y, angle: 0, path, pi: 0, dest: d, platId: null, arriving: false });
+    trips++;
+    return true;
+  }
+  return false;
+}
+
+// ── Movement ────────────────────────────────────────────────
+function moveCar(car, dt) {
+  if (car.arriving || car.pi >= car.path.length - 1) { car.arriving = true; return; }
+  const tgt = cellCenter(...car.path[car.pi + 1]);
+  const dx = tgt.x - car.x, dy = tgt.y - car.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 2) { car.x = tgt.x; car.y = tgt.y; car.pi++; if (car.pi >= car.path.length - 1) car.arriving = true; return; }
+  const spd = Math.min(BASE_SPEED * speedMul * dt, d);
+  car.x += (dx / d) * spd;
+  car.y += (dy / d) * spd;
+  car.angle = Math.atan2(dy, dx);
+}
+
+// ── Platoon Logic ───────────────────────────────────────────
+function upcomingKeys(car, n) {
+  const out = [];
+  for (let i = car.pi; i < Math.min(car.pi + n, car.path.length); i++)
+    out.push((car.path[i][0] << 8) | car.path[i][1]);
+  return out;
+}
+
+function countShared(a, b) {
+  const ka = upcomingKeys(a, PLATOON_SHARED + 5);
+  const kb = upcomingKeys(b, PLATOON_SHARED + 5);
+  let n = 0;
+  for (let i = 0; i < Math.min(ka.length, kb.length); i++) {
+    if (ka[i] === kb[i]) n++; else break;
+  }
+  return n;
+}
+
+function d2(a, b) { return (a.x - b.x) ** 2 + (a.y - b.y) ** 2; }
+
+function updatePlatoons() {
+  // Prune diverged members
+  for (const p of platoons) {
+    if (p.members.length < 2) continue;
+    const lead = p.members[0];
+    p.members = p.members.filter(c => c === lead || countShared(lead, c) >= 2);
+  }
+  // Dissolve tiny platoons
+  platoons = platoons.filter(p => {
+    if (p.members.length >= 2) return true;
+    p.members.forEach(c => c.platId = null);
+    return false;
+  });
+  // Solo cars
+  const solo = cars.filter(c => !c.platId && !c.arriving && c.path.length - c.pi > PLATOON_SHARED);
+  const R2 = PLATOON_RANGE * PLATOON_RANGE;
+
+  // Try forming pairs
+  for (let i = 0; i < solo.length; i++) {
+    const a = solo[i];
+    if (a.platId) continue;
+    for (let j = i + 1; j < solo.length; j++) {
+      const b = solo[j];
+      if (b.platId) continue;
+      if (d2(a, b) > R2) continue;
+      if (countShared(a, b) >= PLATOON_SHARED) {
+        const id = platIdSeq++;
+        a.platId = id; b.platId = id;
+        platoons.push({ id, members: [a, b] });
+        break;
+      }
+    }
+    // Try join existing
+    if (!a.platId) {
+      for (const p of platoons) {
+        const lead = p.members[0];
+        if (d2(a, lead) > R2) continue;
+        if (countShared(lead, a) >= PLATOON_SHARED) {
+          a.platId = p.id;
+          p.members.push(a);
+          break;
+        }
+      }
+    }
+  }
+  // Sort members by progress
+  for (const p of platoons) p.members.sort((a, b) => b.pi - a.pi);
+}
+
+// ── Rendering ───────────────────────────────────────────────
+function drawRoads() {
+  // Draw blocks (non-road areas)
+  ctx.fillStyle = COL.block;
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      if (!isRoad(c, r)) {
+        ctx.fillRect(ox + c * CELL + 1, oy + r * CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+  }
+
+  // Draw road surface
+  ctx.fillStyle = COL.road;
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      if (isRoad(c, r)) {
+        ctx.fillRect(ox + c * CELL, oy + r * CELL, CELL, CELL);
+      }
+    }
+  }
+
+  // Lane markings — dashed center lines
+  ctx.strokeStyle = COL.lane;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 8]);
+
+  for (const r of roadRowSet) {
+    const y = oy + r * CELL + CELL / 2;
+    ctx.beginPath();
+    ctx.moveTo(ox, y);
+    ctx.lineTo(ox + COLS * CELL, y);
+    ctx.stroke();
+  }
+  for (const c of roadColSet) {
+    const x = ox + c * CELL + CELL / 2;
+    ctx.beginPath();
+    ctx.moveTo(x, oy);
+    ctx.lineTo(x, oy + ROWS * CELL);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Intersection highlights
+  ctx.fillStyle = 'rgba(74,222,128,0.018)';
+  for (const c of roadColSet) {
+    for (const r of roadRowSet) {
+      ctx.fillRect(ox + c * CELL, oy + r * CELL, CELL, CELL);
+    }
+  }
+}
+
+function drawDestinations() {
+  for (const car of cars) {
+    if (car.arriving) continue;
+    const p = cellCenter(...car.dest);
+    const t = tick * 0.04 + car.id * 1.7;
+    const pulse = 0.4 + 0.3 * Math.sin(t);
+    ctx.globalAlpha = pulse * 0.5;
+    ctx.fillStyle = COL.dest;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3 + Math.sin(t) * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawLinks() {
+  for (const p of platoons) {
+    const m = p.members;
+    if (m.length < 2) continue;
+    for (let i = 0; i < m.length - 1; i++) {
+      const a = m[i], b = m[i + 1];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.hypot(dx, dy);
+
+      // Glow beam
+      ctx.save();
+      ctx.strokeStyle = COL.linkGlow;
+      ctx.lineWidth = 10;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+
+      // Core link
+      ctx.strokeStyle = COL.link;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Traveling energy dot
+      if (d > 8) {
+        const t = ((tick * 2.5 + i * 37) % 100) / 100;
+        const ex = a.x + dx * t, ey = a.y + dy * t;
+        ctx.fillStyle = COL.plat;
+        ctx.shadowColor = COL.platG;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(ex, ey, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      ctx.restore();
+    }
+  }
+}
+
+function drawCar(car) {
+  const inP = car.platId !== null;
+  const col = inP ? COL.plat : COL.solo;
+  const glow = inP ? COL.platG : COL.soloG;
+
+  ctx.save();
+  ctx.translate(car.x, car.y);
+  ctx.rotate(car.angle);
+
+  // Glow halo
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = inP ? 14 : 7;
+
+  // Body
+  ctx.fillStyle = col;
+  const hw = CAR_L / 2, hh = CAR_W / 2;
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(-hw, -hh, CAR_L, CAR_W, 2.5);
+    ctx.fill();
+  } else {
+    ctx.fillRect(-hw, -hh, CAR_L, CAR_W);
+  }
+
+  ctx.shadowBlur = 0;
+
+  // Windshield accent
+  ctx.fillStyle = inP ? 'rgba(74,222,128,0.45)' : 'rgba(56,189,248,0.35)';
+  ctx.fillRect(hw - 4, -hh + 1.5, 2.5, CAR_W - 3);
+
+  // Headlights
+  ctx.fillStyle = 'rgba(255,255,230,0.85)';
+  ctx.fillRect(hw - 0.5, -hh + 0.5, 1.5, 1.5);
+  ctx.fillRect(hw - 0.5, hh - 2, 1.5, 1.5);
+
+  // Tail lights (red)
+  ctx.fillStyle = inP ? 'rgba(74,222,128,0.6)' : 'rgba(248,113,113,0.5)';
+  ctx.fillRect(-hw - 0.5, -hh + 0.5, 1.5, 1.5);
+  ctx.fillRect(-hw - 0.5, hh - 2, 1.5, 1.5);
+
+  ctx.restore();
+}
+
+function drawStats() {
+  const n = cars.length;
+  const np = platoons.length;
+  const pc = cars.filter(c => c.platId !== null).length;
+  const avg = np ? (platoons.reduce((s, p) => s + p.members.length, 0) / np).toFixed(1) : '\u2014';
+  const pctP = n ? Math.round(pc / n * 100) : 0;
+  const saved = n ? Math.round(pc * (SOLO_GAP - PLATOON_GAP) / (n * SOLO_GAP) * 100) : 0;
+
+  document.getElementById('s-cars').textContent = n;
+  document.getElementById('s-platoons').textContent = np;
+  document.getElementById('s-avg').textContent = avg;
+  document.getElementById('s-pct').textContent = pctP + '%';
+  document.getElementById('s-saved').textContent = saved + '%';
+  document.getElementById('s-trips').textContent = trips;
+}
+
+// ── Controls ────────────────────────────────────────────────
+function togglePause() {
+  paused = !paused;
+  const b = document.getElementById('btn-pp');
+  b.innerHTML = paused ? '&#9208; Pause' : '&#9654; Play';
+  b.classList.toggle('on', !paused);
+}
+
+function addCars(n) {
+  for (let i = 0; i < n; i++) { const c = spawnCar(); if (c) cars.push(c); }
+  document.getElementById('sl-density').value = cars.length;
+}
+
+document.getElementById('sl-speed').addEventListener('input', e => { speedMul = +e.target.value; });
+document.getElementById('sl-density').addEventListener('input', e => {
+  const t = +e.target.value;
+  while (cars.length < t) { const c = spawnCar(); if (c) cars.push(c); else break; }
+  while (cars.length > t) {
+    const rm = cars.pop();
+    if (rm.platId !== null) {
+      const p = platoons.find(p => p.id === rm.platId);
+      if (p) p.members = p.members.filter(c => c !== rm);
+    }
+  }
+});
+
+// ── Resize ──────────────────────────────────────────────────
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  const w = window.innerWidth, h = window.innerHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Fit grid
+  COLS = Math.max(6, Math.floor((w - 80) / CELL));
+  ROWS = Math.max(4, Math.floor((h - 120) / CELL));
+  ox = (w - COLS * CELL) / 2;
+  oy = (h - ROWS * CELL) / 2;
+
+  buildGrid();
+  cacheRoadCells();
+}
+
+// ── Main Loop ───────────────────────────────────────────────
+let prevT = 0;
+
+function frame(ts) {
+  const dt = prevT ? Math.min((ts - prevT) / 16.67, 3) : 1;
+  prevT = ts;
+
+  const w = window.innerWidth, h = window.innerHeight;
+
+  if (!paused) {
+    tick++;
+    for (const c of cars) moveCar(c, dt);
+    for (const c of cars) { if (c.arriving) resetCar(c); }
+    if (tick % 6 === 0) updatePlatoons();
+  }
+
+  // Clear
+  ctx.fillStyle = COL.bg;
+  ctx.fillRect(0, 0, w, h);
+
+  drawRoads();
+  drawDestinations();
+  drawLinks();
+  for (const c of cars) drawCar(c);
+
+  if (tick % 10 === 0) drawStats();
+
+  requestAnimationFrame(frame);
+}
+
+// ── Init ────────────────────────────────────────────────────
+window.addEventListener('resize', resize);
+resize();
+
+// Spawn initial fleet
+for (let i = 0; i < 30; i++) { const c = spawnCar(); if (c) cars.push(c); }
+
+drawStats();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
