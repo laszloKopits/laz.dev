@@ -267,6 +267,24 @@ header nav a:hover {
   margin: 2.5rem 0;
 }
 
+.article-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-size: 0.85rem;
+}
+
+.article-body th, .article-body td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.article-body th {
+  background: var(--bg-raised);
+  font-weight: 600;
+}
+
 /* Subscribe form */
 .subscribe-section {
   margin-top: 4rem;
