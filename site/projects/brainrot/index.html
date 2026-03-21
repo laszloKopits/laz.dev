@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRAINROT — Coding at the Speed of Thought (Which Turns Out to Be Extremely Slow)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 60px 24px 80px;
+        }
+
+        .badge {
+            display: inline-block;
+            border: 1px solid #888;
+            color: #ccc;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            margin-bottom: 32px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.4;
+            margin-bottom: 16px;
+        }
+
+        .authors {
+            color: #999;
+            font-size: 0.9rem;
+            margin-bottom: 48px;
+        }
+
+        .authors .institution {
+            color: #777;
+        }
+
+        .section-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        .abstract {
+            color: #bbb;
+            font-size: 0.9rem;
+            margin-bottom: 48px;
+            border-left: 2px solid #333;
+            padding-left: 20px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 56px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 28px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            text-decoration: none;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            background: transparent;
+            transition: all 0.2s ease;
+            letter-spacing: 0.05em;
+        }
+
+        .btn:hover {
+            background: #e0e0e0;
+            color: #0a0a0a;
+            border-color: #e0e0e0;
+        }
+
+        .btn-primary {
+            background: #e0e0e0;
+            color: #0a0a0a;
+            border-color: #e0e0e0;
+        }
+
+        .btn-primary:hover {
+            background: #fff;
+            border-color: #fff;
+        }
+
+        .diagram {
+            margin-bottom: 48px;
+        }
+
+        .diagram img {
+            width: 100%;
+            border: 1px solid #222;
+        }
+
+        .diagram .caption {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .footer {
+            margin-top: 64px;
+            padding-top: 24px;
+            border-top: 1px solid #222;
+            font-size: 0.75rem;
+            color: #555;
+        }
+
+        .footer a {
+            color: #888;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            color: #ccc;
+        }
+
+        @media (max-width: 500px) {
+            h1 { font-size: 1.3rem; }
+            .container { padding: 40px 16px 60px; }
+            .buttons { flex-direction: column; }
+            .btn { text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="badge">SIGBOVIK 2026</div>
+
+        <h1>Coding at the Speed of Thought (Which Turns Out to Be Extremely Slow)</h1>
+
+        <div class="authors">
+            Laszlo Kopits, Dr. Andi Dog<br>
+            <span class="institution">Mattel Institute of Technology (MIT)</span>
+        </div>
+
+        <div class="section-label">Abstract</div>
+        <div class="abstract">
+            <p>We present BRAINROT (Binary Response Architecture for INtent via Recursive Optimal Tree-search), the first system that generates arbitrary, complete, working software applications steered exclusively with brain interface technology. The system uses a consumer-grade single-channel EEG headset to capture binary yes/no decisions, which guide an LLM coding agent through an information-theoretically motivated questioning process. In two trials, the system produced a to-do list application (24 questions) and a flashcard application (27 questions), both fully functional. We also introduce PUPPY (Parasympathetic Unwinding Protocol for Psychophysiological Yielding), a novel BCI relaxation technique involving looking at pictures of dogs. We find that BRAINROT is an effective method of software generation, which raises questions about the role of the human in the modern development loop. Specifically, whether that role can be performed while looking at dog pictures.</p>
+        </div>
+
+        <div class="buttons">
+            <a href="brainrot.pdf" class="btn btn-primary">Download PDF</a>
+            <a href="brainrot-source.zip" class="btn">Download Source</a>
+        </div>
+
+        <div class="section-label">System Diagram</div>
+        <div class="diagram">
+            <img src="system-diagram.png" alt="BRAINROT system diagram showing the EEG headset, binary decision capture, and LLM coding agent pipeline">
+            <div class="caption">The BRAINROT pipeline: from brain signals to working software.</div>
+        </div>
+
+        <div class="footer">
+            <a href="https://laz.dev">&larr; laz.dev</a>
+        </div>
+    </div>
+</body>
+</html>

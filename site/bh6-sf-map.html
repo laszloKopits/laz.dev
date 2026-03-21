@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>San Fransokyo Map — Big Hero 6 Locations</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Orbitron:wght@700&display=swap');
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+    }
+
+    #header {
+      background: linear-gradient(135deg, #1a0a2e 0%, #16213e 50%, #0f3460 100%);
+      border-bottom: 3px solid #e94560;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 1000;
+      position: relative;
+    }
+
+    #header h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.5rem;
+      background: linear-gradient(90deg, #ff6b6b, #e94560, #ff8a5c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 2px;
+    }
+
+    #header .subtitle {
+      font-size: 0.85rem;
+      color: #8892b0;
+      margin-left: auto;
+    }
+
+    #header .subtitle span {
+      color: #e94560;
+    }
+
+    #map {
+      height: calc(100vh - 64px);
+      width: 100%;
+    }
+
+    /* Custom marker styles */
+    .location-marker {
+      background: none;
+      border: none;
+    }
+
+    .marker-pin {
+      width: 32px;
+      height: 32px;
+      border-radius: 50% 50% 50% 0;
+      background: #e94560;
+      position: relative;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(233, 69, 96, 0.5);
+      border: 2px solid #fff;
+      transition: transform 0.2s;
+    }
+
+    .marker-pin:hover {
+      transform: rotate(-45deg) scale(1.2);
+    }
+
+    .marker-pin .marker-icon {
+      transform: rotate(45deg);
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .marker-pin.landmark { background: #e94560; }
+    .marker-pin.residence { background: #4ecdc4; box-shadow: 0 2px 8px rgba(78, 205, 196, 0.5); }
+    .marker-pin.institution { background: #45b7d1; box-shadow: 0 2px 8px rgba(69, 183, 209, 0.5); }
+    .marker-pin.district { background: #f7dc6f; box-shadow: 0 2px 8px rgba(247, 220, 111, 0.5); }
+    .marker-pin.infrastructure { background: #bb8fce; box-shadow: 0 2px 8px rgba(187, 143, 206, 0.5); }
+
+    /* Popup styles */
+    .leaflet-popup-content-wrapper {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: #e0e0e0;
+      border: 1px solid #e94560;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(233, 69, 96, 0.3);
+    }
+
+    .leaflet-popup-tip {
+      background: #16213e;
+      border: 1px solid #e94560;
+      border-top: none;
+      border-right: none;
+    }
+
+    .leaflet-popup-content {
+      margin: 16px;
+      min-width: 280px;
+      max-width: 340px;
+    }
+
+    .popup-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1rem;
+      color: #ff6b6b;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .popup-jp {
+      font-size: 0.8rem;
+      color: #8892b0;
+      margin-bottom: 10px;
+    }
+
+    .popup-section {
+      margin-bottom: 10px;
+    }
+
+    .popup-section h4 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #e94560;
+      margin-bottom: 4px;
+    }
+
+    .popup-section p {
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: #ccd6f6;
+    }
+
+    .popup-tag {
+      display: inline-block;
+      background: rgba(233, 69, 96, 0.2);
+      color: #e94560;
+      border: 1px solid rgba(233, 69, 96, 0.3);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 8px;
+    }
+
+    /* Legend */
+    .legend {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.8rem;
+      line-height: 1.8;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .legend h4 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem;
+      color: #e94560;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #ccd6f6;
+    }
+
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      flex-shrink: 0;
+    }
+
+    /* Leaflet control overrides */
+    .leaflet-control-zoom a {
+      background: #16213e !important;
+      color: #e0e0e0 !important;
+      border-color: #333 !important;
+    }
+
+    .leaflet-control-zoom a:hover {
+      background: #1a1a2e !important;
+    }
+
+    .leaflet-control-attribution {
+      background: rgba(26, 26, 46, 0.8) !important;
+      color: #666 !important;
+    }
+
+    .leaflet-control-attribution a {
+      color: #888 !important;
+    }
+
+    /* Sidebar (location list) */
+    #sidebar {
+      display: none;
+    }
+
+    @media (min-width: 768px) {
+      #content {
+        display: flex;
+      }
+
+      #sidebar {
+        display: block;
+        width: 320px;
+        height: calc(100vh - 64px);
+        overflow-y: auto;
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        border-right: 1px solid #333;
+        flex-shrink: 0;
+      }
+
+      #sidebar::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      #sidebar::-webkit-scrollbar-track {
+        background: #1a1a2e;
+      }
+
+      #sidebar::-webkit-scrollbar-thumb {
+        background: #e94560;
+        border-radius: 3px;
+      }
+
+      #map {
+        flex: 1;
+      }
+    }
+
+    .sidebar-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .sidebar-item:hover, .sidebar-item.active {
+      background: rgba(233, 69, 96, 0.1);
+    }
+
+    .sidebar-item .name {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #ccd6f6;
+    }
+
+    .sidebar-item .real-loc {
+      font-size: 0.75rem;
+      color: #8892b0;
+      margin-top: 2px;
+    }
+
+    .sidebar-item .cat-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid #333;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #e94560;
+      font-family: 'Orbitron', sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>SAN FRANSOKYO</h1>
+    <div class="subtitle">Big Hero 6 Locations on Real San Francisco — <span>14 locations</span></div>
+  </div>
+  <div id="content">
+    <div id="sidebar">
+      <div class="sidebar-header">Locations</div>
+      <div id="sidebar-list"></div>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const locations = [
+      {
+        id: 'lucky-cat',
+        name: 'Lucky Cat Café',
+        jp: 'ラッキーキャットカフェ',
+        lat: 37.7701,
+        lng: -122.4469,
+        category: 'residence',
+        icon: '🐱',
+        realLocation: 'Haight St & Masonic Ave, Haight-Ashbury',
+        filmContext: 'Aunt Cass\'s bakery-café on the ground floor, with the Hamada family home on the upper floors. Hiro and Tadashi\'s bedroom and garage workshop are here — where Baymax is first activated and where Hiro builds his microbots.',
+        blend: 'The big yellow Victorian at Haight & Masonic was "wonkified" — stretched and exaggerated, then adorned with Maneki-Neko cat figurines, Japanese signage, and cherry blossom–lined streets. Also inspired by the real Coffee to the People café.'
+      },
+      {
+        id: 'sfit',
+        name: 'SF Institute of Technology',
+        jp: 'サンフランソウキョウ工科大学',
+        lat: 37.7989,
+        lng: -122.4662,
+        category: 'institution',
+        icon: '🎓',
+        realLocation: 'The Presidio (+ UC Berkeley, Stanford, MIT)',
+        filmContext: 'The prestigious university where Tadashi studies robotics and creates Baymax. Hiro enrolls after impressing Prof. Callaghan at the showcase. The fire at SFIT\'s exhibition hall is the turning point of the story.',
+        blend: 'The Presidio\'s eucalyptus-lined campus grounds serve as the base, with buildings given pagoda-style rooflines atop modern glass-and-steel structures — a fusion of Bay Area tech campus and Japanese university architecture.'
+      },
+      {
+        id: 'torii-bridge',
+        name: 'Torii Gate Bridge',
+        jp: '鳥居ゲートブリッジ',
+        lat: 37.8199,
+        lng: -122.4783,
+        category: 'landmark',
+        icon: '⛩️',
+        realLocation: 'Golden Gate Bridge',
+        filmContext: 'San Fransokyo\'s most iconic landmark. Hiro and Baymax\'s exhilarating first flight goes over and around it. The final battle against Yokai (Prof. Callaghan) takes place at the portal facility on Akuma Island beneath the bridge.',
+        blend: 'The bridge towers are redesigned as colossal torii gates — traditional Japanese shrine entrance gates — while retaining the suspension cable structure and the iconic International Orange color. A perfect symbol of the city\'s dual identity.'
+      },
+      {
+        id: 'painted-ladies',
+        name: 'Painted Ladies',
+        jp: 'ペインテッドレディーズ',
+        lat: 37.7762,
+        lng: -122.4327,
+        category: 'residence',
+        icon: '🏠',
+        realLocation: 'Alamo Square, Steiner Street',
+        filmContext: 'The famous "Postcard Row" Victorians appear in establishing shots of San Fransokyo\'s residential neighborhoods, showcasing how everyday homes were transformed in this hybrid city.',
+        blend: 'The iconic Victorian row houses were given Japanese makeovers: traditional curved rooftops, koinobori (carp-shaped windsock flags), paper lanterns, and lucky cat motifs added to the colorful facades.'
+      },
+      {
+        id: 'good-luck-alley',
+        name: 'Good Luck Alley',
+        jp: 'グッドラックアレー',
+        lat: 37.7941,
+        lng: -122.4078,
+        category: 'district',
+        icon: '🤖',
+        realLocation: 'Chinatown alleys (Ross Alley / Waverly Place)',
+        filmContext: 'The film\'s opening scene — Hiro hustles veteran bot fighters in an underground gambling ring in this narrow, neon-lit alley. Mr. Yama and his thugs operate here. Named ironically for the "good luck" of surviving a visit.',
+        blend: 'San Francisco Chinatown\'s atmospheric narrow alleys fused with Tokyo\'s Kabukicho and Golden Gai — neon signage in Japanese, cramped gambling dens, and the gritty energy of Tokyo\'s backstreet nightlife.'
+      },
+      {
+        id: 'fred-mansion',
+        name: 'Frederickson Mansion',
+        jp: 'フレデリクソン邸',
+        lat: 37.7925,
+        lng: -122.4382,
+        category: 'residence',
+        icon: '🏛️',
+        realLocation: 'Pacific Heights mansions',
+        filmContext: 'Fred\'s family mansion — the team\'s secret headquarters. Despite Fred\'s slacker persona, his family is wealthy. Houses a secret superhero lair. The post-credits scene reveals Fred\'s dad (Stan Lee cameo) has his own hero past.',
+        blend: 'Grand Pacific Heights mansion exterior with Japanese garden elements, shoji screen interiors, and a mix of Western opulence with Japanese fine art — reflecting Fred\'s family\'s position in San Fransokyo\'s elite.'
+      },
+      {
+        id: 'krei-tech',
+        name: 'Krei Tech Industries',
+        jp: 'クレイテック',
+        lat: 37.7945,
+        lng: -122.3985,
+        category: 'landmark',
+        icon: '🏢',
+        realLocation: 'Financial District (near Transamerica Pyramid)',
+        filmContext: 'Alistair Krei\'s tech empire HQ. Site of the Silent Sparrow portal demonstration. In the climax, Yokai unleashes the microbot swarm to destroy this building and Krei with it, before Big Hero 6 intervenes.',
+        blend: 'Sleek modern tower blending SF Financial District glass-and-steel with Tokyo corporate architecture — think Roppongi Hills meets the Salesforce Tower. Surrounded by Shibuya-style video screen buildings.'
+      },
+      {
+        id: 'coit-tower',
+        name: 'Telegraph Tower (Coit Tower)',
+        jp: 'テレグラフタワー',
+        lat: 37.8024,
+        lng: -122.4058,
+        category: 'landmark',
+        icon: '🗼',
+        realLocation: 'Coit Tower, Telegraph Hill',
+        filmContext: 'Reimagined as a multi-tiered pagoda, visible in skyline shots. Part of the Night Market Square area in San Fransokyo, where evening markets and street vendors congregate.',
+        blend: 'One of the most striking visual fusions in the skyline — the Art Deco fluted column of Coit Tower completely transformed into a Japanese pagoda tower, while remaining in the same hilltop position overlooking the bay.'
+      },
+      {
+        id: 'transamerica',
+        name: 'Transamerica Pyramid',
+        jp: 'トランスアメリカピラミッド',
+        lat: 37.7952,
+        lng: -122.4028,
+        category: 'landmark',
+        icon: '🔺',
+        realLocation: 'Transamerica Pyramid, Financial District',
+        filmContext: 'Visible in skyline establishing shots, the pyramid is one of the few landmarks kept relatively unchanged — serving as an anchor of recognition amid the transformed cityscape.',
+        blend: 'The pyramid itself stays largely intact but is flanked by Tokyo-style skyscrapers with pulsing video screens, creating a "Shibuya-meets-Financial District" skyline.'
+      },
+      {
+        id: 'cable-cars',
+        name: 'Cable Car Line',
+        jp: 'ケーブルカー',
+        lat: 37.7946,
+        lng: -122.4108,
+        category: 'infrastructure',
+        icon: '🚋',
+        realLocation: 'Powell-Hyde Cable Car Line',
+        filmContext: 'Hiro rides the cable cars through the city. The destination signs have been renamed: "Hamakiri Street" (Market St) and "Ryoshi Wharf" (Fisherman\'s Wharf) — blending familiar SF transit with Japanese names.',
+        blend: 'Classic San Francisco cable cars with Japanese-language destination boards and modified signage. The overhead MUNI electrical wires are faithfully reproduced from real SF streets.'
+      },
+      {
+        id: 'port',
+        name: 'Port of San Fransokyo',
+        jp: 'サンフランソウキョウ港',
+        lat: 37.7955,
+        lng: -122.3937,
+        category: 'infrastructure',
+        icon: '⚓',
+        realLocation: 'Port of SF / Embarcadero & Ferry Building',
+        filmContext: 'The waterfront area where the team discovers Yokai\'s warehouse hideout and follows him to Akuma Island. The port scenes establish San Fransokyo as a major Pacific Rim trading hub.',
+        blend: 'The Ferry Building and Embarcadero piers blended with Yokohama waterfront aesthetics — Japanese port architecture, kanji signage on warehouses, and torii-inspired dock structures.'
+      },
+      {
+        id: 'ghirardelli',
+        name: 'Ghirardelli Square',
+        jp: 'ギラデリスクエア',
+        lat: 37.8060,
+        lng: -122.4230,
+        category: 'district',
+        icon: '🍫',
+        realLocation: 'Ghirardelli Square, North Beach / Fisherman\'s Wharf',
+        filmContext: 'Visible in waterfront establishing shots. The historic chocolate factory complex is part of San Fransokyo\'s tourist waterfront district.',
+        blend: 'The red-brick factory buildings given Japanese commercial district treatment with noren curtains, lanterns, and Japanese confectionery signage mixed with the original Ghirardelli branding.'
+      },
+      {
+        id: 'stockton-tunnel',
+        name: 'Stockton Street Tunnel',
+        jp: 'ストックトントンネル',
+        lat: 37.7883,
+        lng: -122.4074,
+        category: 'infrastructure',
+        icon: '🚇',
+        realLocation: 'Stockton St Tunnel (Chinatown–North Beach)',
+        filmContext: 'Featured in a chase scene with the real "QUIET THROUGH TUNNEL" sign faithfully replicated — one of the most directly copied SF elements in the film.',
+        blend: 'Minimal modification — the tunnel is nearly identical to the real one, serving as an "easter egg" for San Francisco residents watching the film.'
+      },
+      {
+        id: 'akuma-island',
+        name: 'Akuma Island',
+        jp: '悪魔島',
+        lat: 37.8267,
+        lng: -122.4233,
+        category: 'landmark',
+        icon: '👹',
+        realLocation: 'Alcatraz Island',
+        filmContext: 'Abandoned island where Krei Tech\'s Secret Sparrow portal experiment went wrong. Prof. Callaghan (Yokai) uses it as his base. "Akuma" means "demon" in Japanese — reflecting the island\'s dark history.',
+        blend: 'Alcatraz\'s foreboding silhouette renamed with Japanese — the prison island reimagined as an abandoned tech facility with brutalist Japanese architecture and overgrown gardens.'
+      }
+    ];
+
+    const categoryColors = {
+      landmark: '#e94560',
+      residence: '#4ecdc4',
+      institution: '#45b7d1',
+      district: '#f7dc6f',
+      infrastructure: '#bb8fce'
+    };
+
+    const categoryLabels = {
+      landmark: 'Landmark',
+      residence: 'Residence',
+      institution: 'Institution',
+      district: 'District',
+      infrastructure: 'Infrastructure'
+    };
+
+    // Initialize map
+    const map = L.map('map', {
+      center: [37.7950, -122.4200],
+      zoom: 13,
+      zoomControl: true
+    });
+
+    // Dark tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Create custom marker
+    function createMarker(loc) {
+      const el = document.createElement('div');
+      el.className = 'marker-pin ' + loc.category;
+      el.innerHTML = '<span class="marker-icon">' + loc.icon + '</span>';
+
+      const icon = L.divIcon({
+        html: el.outerHTML,
+        className: 'location-marker',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -36]
+      });
+
+      return L.marker([loc.lat, loc.lng], { icon });
+    }
+
+    // Build popups and markers
+    const markers = {};
+    locations.forEach(loc => {
+      const marker = createMarker(loc);
+
+      const popupContent = `
+        <div class="popup-title">${loc.name}</div>
+        <div class="popup-jp">${loc.jp}</div>
+        <div class="popup-section">
+          <h4>Real SF Location</h4>
+          <p>${loc.realLocation}</p>
+        </div>
+        <div class="popup-section">
+          <h4>In the Film</h4>
+          <p>${loc.filmContext}</p>
+        </div>
+        <div class="popup-section">
+          <h4>SF → Tokyo Blend</h4>
+          <p>${loc.blend}</p>
+        </div>
+        <span class="popup-tag">${categoryLabels[loc.category]}</span>
+      `;
+
+      marker.bindPopup(popupContent, { maxWidth: 340, closeButton: true });
+      marker.addTo(map);
+      markers[loc.id] = marker;
+    });
+
+    // Build sidebar
+    const sidebarList = document.getElementById('sidebar-list');
+    locations.forEach(loc => {
+      const item = document.createElement('div');
+      item.className = 'sidebar-item';
+      item.dataset.id = loc.id;
+      item.innerHTML = `
+        <div class="name">
+          <span class="cat-dot" style="background:${categoryColors[loc.category]}"></span>
+          ${loc.icon} ${loc.name}
+        </div>
+        <div class="real-loc">${loc.realLocation}</div>
+      `;
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+        item.classList.add('active');
+        map.flyTo([loc.lat, loc.lng], 16, { duration: 1 });
+        markers[loc.id].openPopup();
+      });
+      sidebarList.appendChild(item);
+    });
+
+    // Legend control
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
+      const div = L.DomUtil.create('div', 'legend');
+      div.innerHTML = `
+        <h4>Categories</h4>
+        ${Object.entries(categoryColors).map(([cat, color]) => `
+          <div class="legend-item">
+            <span class="legend-color" style="background:${color}"></span>
+            ${categoryLabels[cat]}
+          </div>
+        `).join('')}
+      `;
+      return div;
+    };
+    legend.addTo(map);
+  </script>
+</body>
+</html>
