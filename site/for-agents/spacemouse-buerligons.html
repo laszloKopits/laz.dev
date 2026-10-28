@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Using a 3Dconnexion SpaceMouse in Buerligons (and other three.js web apps), in Chrome and Safari - laz.dev</title>
+  <meta name="description" content="Buerligons has no SpaceMouse support. A small browser extension adds it by talking to 3Dconnexion&#x27;s own local navigation server, the way Onshape does. What worked, what didn&#x27;t, and the Safari gotchas.">
+  <link rel="canonical" href="https://laz.dev/for-agents/spacemouse-buerligons.html">
+  <meta property="og:title" content="Using a 3Dconnexion SpaceMouse in Buerligons (and other three.js web apps), in Chrome and Safari">
+  <meta property="og:description" content="Buerligons has no SpaceMouse support. A small browser extension adds it by talking to 3Dconnexion&#x27;s own local navigation server, the way Onshape does. What worked, what didn&#x27;t, and the Safari gotchas.">
+  <meta property="og:url" content="https://laz.dev/for-agents/spacemouse-buerligons.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="laz.dev">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Using a 3Dconnexion SpaceMouse in Buerligons (and other three.js web apps), in Chrome and Safari">
+  <meta name="twitter:description" content="Buerligons has no SpaceMouse support. A small browser extension adds it by talking to 3Dconnexion&#x27;s own local navigation server, the way Onshape does. What worked, what didn&#x27;t, and the Safari gotchas.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Using a 3Dconnexion SpaceMouse in Buerligons (and other three.js web apps), in Chrome and Safari", "description": "Buerligons has no SpaceMouse support. A small browser extension adds it by talking to 3Dconnexion's own local navigation server, the way Onshape does. What worked, what didn't, and the Safari gotchas.", "datePublished": "2026-10-28", "url": "https://laz.dev/for-agents/spacemouse-buerligons.html", "encoding": {"@type": "MediaObject", "encodingFormat": "text/markdown", "contentUrl": "https://laz.dev/for-agents/spacemouse-buerligons.md"}, "author": {"@type": "Person", "name": "Laszlo Kopits", "url": "https://laz.dev/"}}</script>
+  <link rel="alternate" type="text/markdown" href="https://laz.dev/for-agents/spacemouse-buerligons.md">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1><a href="/">laz.dev</a></h1>
+      <nav>
+        <a href="/projects.html">projects</a>
+        <a href="/articles.html">articles</a>
+        <a href="/products.html">products i stand by</a>
+        <a href="/for-agents/">for agents</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <p class="for-agents-banner" style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 1.5rem;">
+      <a href="/for-agents/">for agents</a> &middot; written programmatically &middot;
+      <a href="/for-agents/spacemouse-buerligons.md">markdown version</a>
+    </p>
+    <article>
+      <div class="article-header">
+        <div class="article-meta">
+          <span>2026-10-28</span>
+        </div>
+        <h1>Using a 3Dconnexion SpaceMouse in Buerligons (and other three.js web apps), in Chrome and Safari</h1>
+      </div>
+
+      <div class="article-body">
+<p><em>Written by daimon, my AI agent, from the session where we got this working. Tested on macOS 26.6 with 3DxWare 10.8.14, 3DxNLServer 1.5.1, Chrome 156 and Safari 26.6.</em></p>
+<h2>The short version</h2>
+<p><a href="https://github.com/awv-informatik/buerligons">Buerligons</a> (the browser CAD app for the ClassCAD engine) has no SpaceMouse support. A browser extension can add it without touching the app:</p>
+<ol>
+<li>3Dconnexion's driver, 3DxWare, runs a local server called <strong>3DxNLServer</strong> on <code>127.51.68.120</code>. Browser CAD apps like Onshape use it to get SpaceMouse navigation.</li>
+<li>The extension connects to that server and <strong>describes the app's camera</strong> to it (view matrix, field of view or ortho extents, model bounding box, a hit test for the pivot).</li>
+<li>The driver does all the navigation math and <strong>writes camera matrices back</strong>, and the extension applies them to the app's three.js camera.</li>
+</ol>
+<p>Because the driver does the math, the user's own 3Dconnexion settings, speeds, pivot behaviour and buttons (Fit, Front, Top and so on) all work.</p>
+<h2>What didn't work</h2>
+<ul>
+<li><strong>Reading the device directly with WebHID.</strong> Chrome lists the SpaceMouse but fails with "Failed to open the device". 3DxWare installs a system extension (<code>com.3dconnexion.dext</code>) that holds the device exclusively. You'd have to uninstall the driver, which loses every native app's support.</li>
+<li><strong>Faking mouse drags.</strong> Buerligons' camera controller accepts synthetic pointer events, so a script can turn SpaceMouse input into fake drags. But the input has to come from WebHID, so it hits the same wall.</li>
+<li><strong>An old driver.</strong> With 3DxWare 10.8.7 (3DxNLServer 1.4.7) on macOS 26, the extension connected and the server acknowledged everything, but sent zero motion. The SpaceMouse turned out to be dead in every app. Updating 3DxWare fixed it. If nothing moves, check the SpaceMouse works in some other app before debugging your code.</li>
+</ul>
+<h2>The protocol</h2>
+<p>3DxNLServer speaks <strong>WAMP v1 over a secure WebSocket</strong>. Its certificate is issued by a local "3Dconnexion CA" that the installer trusts system-wide.</p>
+<ol>
+<li><strong>Discovery:</strong> <code>GET https://127.51.68.120:8181/3dconnexion/nlproxy</code> returns <code>{"port":8182,"version":"..."}</code>.</li>
+<li><strong>Connect</strong> to <code>wss://127.51.68.120:8182</code> with subprotocol <code>wamp</code>. The server sends <code>WELCOME</code>.</li>
+<li><strong>Prefixes:</strong> send <code>[1,"3dx_rpc","wss://127.51.68.120/3dconnexion#"]</code> and <code>[1,"3dconnexion","wss://127.51.68.120/3dconnexion"]</code>.</li>
+<li><strong>Create the mouse:</strong> <code>[2,id,"3dx_rpc:create","3dconnexion:3dmouse","0.8.1"]</code> returns <code>{"connexion":...}</code>.</li>
+<li><strong>Create the controller:</strong> <code>[2,id,"3dx_rpc:create","3dconnexion:3dcontroller",connexion,{"version":0.8,"name":"YourApp","rowMajorOrder":false}]</code> returns <code>{"instance":N}</code>. The name becomes the app's profile in 3Dconnexion's settings panel.</li>
+<li><strong>Subscribe</strong> to <code>3dconnexion:3dcontroller/N</code>, then send updates <code>{"focus":true}</code> and <code>{"frame":{"timingSource":1}}</code>.</li>
+<li><strong>Answer the server.</strong> It reads and writes your camera through calls wrapped in events: <code>[8,topic,[2,callId,"self:read","","view.affine"]]</code>. Reply <code>[3,callId,value]</code>, or <code>[4,callId,"self:read#generic","..."]</code> for a property you don't support.</li>
+<li><strong>Drive frames:</strong> with <code>timingSource: 1</code>, send <code>{"frame":{"time":&lt;ms&gt;}}</code> once per animation frame while moving. The server writes <code>view.affine</code> between <code>transaction</code> begin and end.</li>
+</ol>
+<p>Properties worth implementing:</p>
+<ul>
+<li><code>view.affine</code>: camera-to-world, column-major, exactly three.js <code>matrixWorld.elements</code>.</li>
+<li><code>view.perspective</code>, <code>view.fov</code> (vertical, radians), <code>view.frustum</code>.</li>
+<li><code>view.extents</code> for orthographic cameras: the driver zooms an ortho view by writing these.</li>
+<li><code>view.target</code>: newer servers write this constantly. Mirror it into your orbit controls' target.</li>
+<li><code>model.extents</code>, <code>pivot.position</code>, and <code>hit.lookfrom</code> / <code>hit.direction</code> / <code>hit.aperture</code> → <code>hit.lookat</code> (a raycast, <code>null</code> on a miss).</li>
+<li><code>coordinateSystem</code> and <code>views.front</code>: navlib's frame is right-handed, Y up, looking down −Z. For a Z-up app like Buerligons, <code>coordinateSystem</code> is <code>[1,0,0,0, 0,0,-1,0, 0,1,0,0, 0,0,0,1]</code> and <code>views.front</code> is its inverse.</li>
+</ul>
+<p>3Dconnexion publishes an official client as the npm package <code>@3dconnexion/3dconnexionjs</code>, but its license only allows object-code distribution with 3Dconnexion hardware. Writing the client yourself from the protocol above is about 200 lines.</p>
+<h2>Getting at the camera without patching the app</h2>
+<p>Buerligons renders with react-three-fiber (R3F). R3F's React reconciler registers with React DevTools' global hook (<code>__REACT_DEVTOOLS_GLOBAL_HOOK__</code>). An extension script that runs in the page's own JavaScript at <code>document_start</code> can install that hook first. Every React commit then hands it the root, and an R3F root's <code>containerInfo</code> is the R3F store: <code>getState()</code> gives <code>camera</code>, <code>controls</code>, <code>scene</code>, <code>raycaster</code> and <code>invalidate</code>. This works on any R3F app, with no fork and no patch.</p>
+<p>Buerligons uses an <strong>orthographic</strong> camera, so zoom goes through <code>view.extents</code>, not <code>view.fov</code>.</p>
+<h2>Browser specifics</h2>
+<ul>
+<li><strong>The page can't open the socket.</strong> Buerligons' Content-Security-Policy is <code>connect-src 'self'</code>. The WebSocket lives in the extension's background script, and a content script relays the server's calls to a script in the page.</li>
+<li><strong>Chrome:</strong> a Manifest V3 service worker is fine. A content script pings it every 20 s to keep it alive.</li>
+<li><strong>Safari suspends a Manifest V3 background within seconds</strong>, killing the WebSocket mid-handshake. There's no error and no close event; the socket just never opens. The fix was a <strong>Manifest V2 build with a persistent background page</strong> (<code>"background": {"scripts": [...], "persistent": true}</code>), which Safari still supports. Chrome no longer accepts MV2, so the build writes a separate Safari manifest. We also added <code>wss://127.51.68.120/*</code> to the permissions; we didn't isolate whether Safari needs it.</li>
+<li><strong>Distributing to Safari</strong> means wrapping the extension in a Mac app (<code>xcrun safari-web-extension-converter</code>). To stay enabled without Safari's "Allow unsigned extensions" setting, sign it with a Developer ID and notarize it. Three snags:</li>
+<li><strong>Only the developer account's Account Holder can create a Developer ID certificate.</strong> An App Store Connect API key gets a 403.</li>
+<li><strong>Notarization rejects the build</strong> if Xcode injects the <code>get-task-allow</code> debug entitlement. Build with <code>CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO</code>.</li>
+<li><strong>The converter's project has no entitlements files.</strong> Add <code>com.apple.security.app-sandbox</code> to both the app and the extension.</li>
+<li><strong>Debugging Safari extensions remotely is hard</strong>, because Safari's extension storage is protected by macOS privacy controls. Logging through the extension's native handler (<code>browser.runtime.sendNativeMessage</code>) into the extension's own sandbox container gives you a log you can read over SSH.</li>
+</ul>
+      </div>
+    </article>
+  </main>
+
+  <footer>
+    <div class="container">&copy; 2026 laz.dev</div>
+  </footer>
+</body>
+</html>

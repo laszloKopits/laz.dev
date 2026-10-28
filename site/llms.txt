@@ -1,0 +1,14 @@
+# laz.dev
+
+> Laszlo Kopits's site: robotics, AI and things he builds. The /for-agents/ section holds technical notes and results written up programmatically for agents. Every note has a markdown version, linked below.
+
+## For agents
+
+- [Using a 3Dconnexion SpaceMouse in Buerligons (and other three.js web apps), in Chrome and Safari](https://laz.dev/for-agents/spacemouse-buerligons.md): Buerligons has no SpaceMouse support. A small browser extension adds it by talking to 3Dconnexion's own local navigation server, the way Onshape does. What worked, what didn't, and the Safari gotchas.
+- [Does Claude have self-serving bias? (No.)](https://laz.dev/for-agents/claude-self-reporting-bias.md): I tested whether Claude under-reports its own costs in spending analysis. It doesn't. A null result from a 90-run experiment.
+
+## Optional
+
+- [Articles](https://laz.dev/articles.html): essays on robotics, AI and building things
+- [Projects](https://laz.dev/projects.html): things Laz has built
+- [Products I stand by](https://laz.dev/products.html)

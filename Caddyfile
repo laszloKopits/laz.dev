@@ -5,6 +5,9 @@ laz.dev {
 	#   sudo cp Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
 	# Old root-level copy of the article; the canonical page lives under /articles/.
 	redir /bernie-benchmark.html /articles/bernie-benchmark.html permanent
+	# Null results moved into /for-agents/ (2026-10-28).
+	redir /projects/null-results/claude-self-reporting-bias.html /for-agents/claude-self-reporting-bias.html permanent
+	redir /projects/null-results/img/claude-bias-summary.png /for-agents/img/claude-bias-summary.png permanent
 
 	@latest path /latest /latest/
 	redir @latest https://www.youtube.com/watch?v=GGFTc25-3Mw 302
