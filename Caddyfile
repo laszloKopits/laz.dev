@@ -1,4 +1,11 @@
 laz.dev {
+	# laz.dev/latest = "the latest thing I'm proud of". 302 on purpose: the
+	# target changes over time, and a 301 gets cached by browsers forever.
+	# To repoint: edit the URL below, commit, then
+	#   sudo cp Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+	@latest path /latest /latest/
+	redir @latest https://www.youtube.com/watch?v=GGFTc25-3Mw 302
+
 	handle /api/* {
 		reverse_proxy localhost:8000
 	}
