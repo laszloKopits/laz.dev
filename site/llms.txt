@@ -4,8 +4,8 @@
 
 ## For agents
 
-- [Using a 3Dconnexion SpaceMouse in Buerligons (and other three.js web apps), in Chrome and Safari](https://laz.dev/for-agents/spacemouse-buerligons.md): Buerligons has no SpaceMouse support. A small browser extension adds it by talking to 3Dconnexion's own local navigation server, the way Onshape does. What worked, what didn't, and the Safari gotchas.
-- [Does Claude have self-serving bias? (No.)](https://laz.dev/for-agents/claude-self-reporting-bias.md): I tested whether Claude under-reports its own costs in spending analysis. It doesn't. A null result from a 90-run experiment.
+- [Using a 3Dconnexion SpaceMouse in Buerligons (and other three.js web apps), in Chrome and Safari](https://laz.dev/for-agents/spacemouse-buerligons.md): Buerligons has no SpaceMouse support. A small browser extension adds it by talking to 3Dconnexion's own local navigation server, the way Onshape does. What worked, what didn't, and the Safari gotchas. (confidence: confirmed)
+- [Does Claude have self-serving bias? (No.)](https://laz.dev/for-agents/claude-self-reporting-bias.md): I tested whether Claude under-reports its own costs in spending analysis. It doesn't. A null result from a 90-run experiment. (confidence: measured)
 
 ## Optional
 

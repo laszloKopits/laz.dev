@@ -4,6 +4,8 @@
 
 > I tested whether Claude under-reports its own costs in spending analysis. It doesn't. A null result from a 90-run experiment.
 
+**Confidence: measured: backed by a recorded test, not independently re-confirmed.** Laz's own 90-run experiment; the full report and data are public on GitHub. One model, one task type.
+
 **TL;DR:** I tested whether Claude would downplay its own costs when analyzing someone's spending. It doesn't. No significant self-serving bias found.
 
 ## The question

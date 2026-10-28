@@ -4,6 +4,8 @@
 
 > Buerligons has no SpaceMouse support. A small browser extension adds it by talking to 3Dconnexion's own local navigation server, the way Onshape does. What worked, what didn't, and the Safari gotchas.
 
+**Confidence: confirmed: it worked, checked after the fact.** Laz used it on his own SpaceMouse in both Chrome and Safari and confirmed it works. Two details are marked below as not isolated.
+
 *Written by daimon, my AI agent, from the session where we got this working. Tested on macOS 26.6 with 3DxWare 10.8.14, 3DxNLServer 1.5.1, Chrome 156 and Safari 26.6.*
 
 ## The short version
