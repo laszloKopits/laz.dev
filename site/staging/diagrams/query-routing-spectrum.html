@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Query Routing Spectrum — Napkin Futurist</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --card-bg: #14141f;
+    --card-hover: #1a1a2a;
+    --text: #e0e0e8;
+    --text-muted: #8888a0;
+    --cyan: #00d4ff;
+    --purple: #a855f7;
+    --amber: #f59e0b;
+    --card-radius: 10px;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem calc(2rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ---- Header ---- */
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  .brand {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+  h1 {
+    font-size: clamp(1.5rem, 4vw, 2.25rem);
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--cyan), var(--purple), var(--amber));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-top: 0.4rem;
+  }
+
+  /* ---- Spectrum Bar ---- */
+  .spectrum-wrap {
+    position: relative;
+    margin-bottom: 2.5rem;
+  }
+  #spectrum-svg {
+    width: 100%;
+    display: block;
+  }
+  .zone-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    padding: 0 2px;
+  }
+  .zone-labels span:nth-child(1) { color: var(--cyan); }
+  .zone-labels span:nth-child(2) { color: var(--purple); }
+  .zone-labels span:nth-child(3) { color: var(--amber); }
+
+  /* ---- Cards Section ---- */
+  .cards-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .zone-heading {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-top: 1.25rem;
+    margin-bottom: 0.25rem;
+    padding-left: 4px;
+  }
+  .zone-heading.search { color: var(--cyan); }
+  .zone-heading.llm    { color: var(--purple); }
+  .zone-heading.agent  { color: var(--amber); }
+
+  /* ---- Card ---- */
+  .card {
+    background: var(--card-bg);
+    border-radius: var(--card-radius);
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .card:hover, .card:focus-visible {
+    background: var(--card-hover);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    transform: translateY(-1px);
+  }
+  .card.active {
+    transform: translateY(0);
+  }
+  .card.search { border-left-color: var(--cyan); }
+  .card.llm    { border-left-color: var(--purple); }
+  .card.agent  { border-left-color: var(--amber); }
+
+  .card-question {
+    padding: 0.85rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+  .card-question .arrow {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    transition: transform 0.3s ease;
+    opacity: 0.4;
+  }
+  .card.active .card-question .arrow {
+    transform: rotate(180deg);
+    opacity: 0.8;
+  }
+
+  .card-annotation {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease;
+    opacity: 0;
+  }
+  .card.active .card-annotation {
+    max-height: 300px;
+    opacity: 1;
+  }
+  .annotation-inner {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin-top: 0;
+    padding-top: 0.75rem;
+  }
+  .annotation-text {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.65;
+  }
+
+  /* Position indicator inside annotation */
+  .position-bar-wrap {
+    margin-top: 0.75rem;
+    position: relative;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--cyan), var(--purple), var(--amber));
+    opacity: 0.35;
+  }
+  .position-dot {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    border: 2px solid #fff;
+    box-shadow: 0 0 8px rgba(255,255,255,0.4);
+  }
+  .card.search .position-dot { background: var(--cyan); }
+  .card.llm    .position-dot { background: var(--purple); }
+  .card.agent  .position-dot { background: var(--amber); }
+
+  /* ---- Legend ---- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    justify-content: center;
+    margin-top: 2.5rem;
+    padding: 1.25rem;
+    background: rgba(255,255,255,0.03);
+    border-radius: var(--card-radius);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+  }
+  .legend-item .emoji { font-size: 1rem; }
+  .legend-item .label { color: var(--text-muted); }
+  .legend-item.search .label { color: color-mix(in srgb, var(--cyan) 70%, var(--text)); }
+  .legend-item.llm    .label { color: color-mix(in srgb, var(--purple) 70%, var(--text)); }
+  .legend-item.agent  .label { color: color-mix(in srgb, var(--amber) 70%, var(--text)); }
+
+  /* ---- Footer ---- */
+  .footer {
+    text-align: center;
+    margin-top: 3rem;
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.05em;
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 600px) {
+    .container { padding: 1.5rem 0.75rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); }
+    .card-question { font-size: 0.85rem; padding: 0.85rem; min-height: 44px; }
+    .annotation-text { font-size: 0.8rem; }
+    .legend { gap: 1rem; padding: 1rem; }
+    .legend-item { font-size: 0.75rem; }
+    .zone-labels { font-size: 0.65rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header class="header">
+    <div class="brand">Napkin Futurist &middot; Diagram 3</div>
+    <h1>The Query Routing Spectrum</h1>
+    <p class="subtitle">Where should your question go?</p>
+  </header>
+
+  <div class="spectrum-wrap">
+    <svg id="spectrum-svg" height="48" preserveAspectRatio="none"></svg>
+    <div class="zone-labels">
+      <span>Retrieve known facts</span>
+      <span>Interpolate &amp; synthesize</span>
+      <span>Compositional inference</span>
+    </div>
+  </div>
+
+  <div class="cards-section" id="cards"></div>
+
+  <div class="legend">
+    <div class="legend-item search">
+      <span class="emoji" aria-hidden="true">&#x1F4CD;</span>
+      <span class="label">Search &mdash; Retrieve existing points</span>
+    </div>
+    <div class="legend-item llm">
+      <span class="emoji" aria-hidden="true">&#x1F30A;</span>
+      <span class="label">LLM &mdash; Map the manifold</span>
+    </div>
+    <div class="legend-item agent">
+      <span class="emoji" aria-hidden="true">&#x1F3AF;</span>
+      <span class="label">Agent &mdash; Triangulate via constraints</span>
+    </div>
+  </div>
+
+  <div class="footer">napkinfuturist.com</div>
+</div>
+
+<script>
+// ---------- DATA ----------
+const questions = [
+  // Search territory
+  {
+    zone: "search",
+    position: 0.08,
+    question: "What is Chipotle\u2019s current stock price?",
+    annotation: "A single, pre-mapped data point. Search retrieves it instantly."
+  },
+  {
+    zone: "search",
+    position: 0.15,
+    question: "When was the Eiffel Tower built?",
+    annotation: "Exact fact retrieval \u2014 no interpretation needed."
+  },
+  {
+    zone: "search",
+    position: 0.22,
+    question: "Python datetime format codes",
+    annotation: "Reference lookup. The answer exists verbatim in documentation."
+  },
+  // LLM territory
+  {
+    zone: "llm",
+    position: 0.42,
+    question: "Explain quantum entanglement like I\u2019m 12",
+    annotation: "Requires interpolation between physics knowledge and communication style. No single source has this exact answer."
+  },
+  {
+    zone: "llm",
+    position: 0.50,
+    question: "Write a sea shanty about debugging code",
+    annotation: "Creative synthesis across two unrelated domains \u2014 the manifold between music and programming."
+  },
+  {
+    zone: "llm",
+    position: 0.58,
+    question: "What\u2019s the difference between REST and GraphQL?",
+    annotation: "Synthesis of multiple concepts into a coherent comparison. The answer is pattern-matched, not retrieved."
+  },
+  // Agent territory
+  {
+    zone: "agent",
+    position: 0.78,
+    question: "How much of Chipotle\u2019s market cap is due to real estate?",
+    annotation: "Requires: (1) look up market cap, (2) find real estate holdings in SEC filings, (3) compute the ratio. No single source has this \u2014 it must be constructed from constraints."
+  },
+  {
+    zone: "agent",
+    position: 0.86,
+    question: "Find all breaking changes if I upgrade React from v17 to v19 in my codebase",
+    annotation: "Requires reading your specific code, checking migration guides, running analysis. Each step constrains the answer."
+  },
+  {
+    zone: "agent",
+    position: 0.93,
+    question: "Is this contract clause legally risky for my situation?",
+    annotation: "Needs context gathering, legal precedent research, and reasoning about your specific circumstances."
+  }
+];
+
+const COLORS = {
+  search: "#00d4ff",
+  llm: "#a855f7",
+  agent: "#f59e0b"
+};
+
+// ---------- SPECTRUM BAR (D3) ----------
+function renderSpectrum() {
+  const svg = d3.select("#spectrum-svg");
+  const node = svg.node();
+  const width = node.getBoundingClientRect().width;
+  const height = 48;
+
+  svg.attr("viewBox", `0 0 ${width} ${height}`);
+  svg.selectAll("*").remove();
+
+  const defs = svg.append("defs");
+
+  // Animated gradient
+  const grad = defs.append("linearGradient")
+    .attr("id", "specGrad")
+    .attr("x1", "0%").attr("x2", "100%");
+
+  grad.append("stop").attr("offset", "0%").attr("stop-color", COLORS.search);
+  grad.append("stop").attr("offset", "50%").attr("stop-color", COLORS.llm);
+  grad.append("stop").attr("offset", "100%").attr("stop-color", COLORS.agent);
+
+  // Glow filter
+  const filter = defs.append("filter").attr("id", "glow");
+  filter.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "blur");
+  const merge = filter.append("feMerge");
+  merge.append("feMergeNode").attr("in", "blur");
+  merge.append("feMergeNode").attr("in", "SourceGraphic");
+
+  // Background glow
+  svg.append("rect")
+    .attr("x", 0).attr("y", 14)
+    .attr("width", width).attr("height", 20)
+    .attr("rx", 10)
+    .attr("fill", "url(#specGrad)")
+    .attr("opacity", 0.15)
+    .attr("filter", "url(#glow)");
+
+  // Main bar
+  svg.append("rect")
+    .attr("x", 0).attr("y", 16)
+    .attr("width", width).attr("height", 16)
+    .attr("rx", 8)
+    .attr("fill", "url(#specGrad)")
+    .attr("opacity", 0.85);
+
+  // Animated shimmer overlay
+  const shimmerGrad = defs.append("linearGradient")
+    .attr("id", "shimmer")
+    .attr("x1", "0%").attr("x2", "100%");
+  shimmerGrad.append("stop").attr("offset", "0%").attr("stop-color", "#fff").attr("stop-opacity", 0);
+  shimmerGrad.append("stop").attr("offset", "50%").attr("stop-color", "#fff").attr("stop-opacity", 0.08);
+  shimmerGrad.append("stop").attr("offset", "100%").attr("stop-color", "#fff").attr("stop-opacity", 0);
+
+  const shimmerRect = svg.append("rect")
+    .attr("x", -width).attr("y", 16)
+    .attr("width", width).attr("height", 16)
+    .attr("rx", 8)
+    .attr("fill", "url(#shimmer)");
+
+  // Animate shimmer
+  function animateShimmer() {
+    shimmerRect
+      .attr("x", -width)
+      .transition()
+      .duration(3000)
+      .ease(d3.easeLinear)
+      .attr("x", width)
+      .on("end", () => {
+        setTimeout(animateShimmer, 1500);
+      });
+  }
+  animateShimmer();
+
+  // Zone dividers — subtle tick marks at ~33% and ~66%
+  [0.333, 0.666].forEach(pct => {
+    svg.append("line")
+      .attr("x1", width * pct).attr("x2", width * pct)
+      .attr("y1", 12).attr("y2", 36)
+      .attr("stroke", "rgba(255,255,255,0.12)")
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "2,3");
+  });
+}
+
+// ---------- CARDS ----------
+function renderCards() {
+  const container = document.getElementById("cards");
+  container.innerHTML = "";
+
+  const zones = [
+    { key: "search", label: "Search Territory" },
+    { key: "llm",    label: "LLM Territory" },
+    { key: "agent",  label: "Agent Territory" }
+  ];
+
+  zones.forEach(zone => {
+    const heading = document.createElement("div");
+    heading.className = `zone-heading ${zone.key}`;
+    heading.textContent = zone.label;
+    container.appendChild(heading);
+
+    questions.filter(q => q.zone === zone.key).forEach((q, i) => {
+      const card = document.createElement("div");
+      card.className = `card ${q.zone}`;
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-expanded", "false");
+
+      card.innerHTML = `
+        <div class="card-question">
+          <span>${q.question}</span>
+          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+        <div class="card-annotation">
+          <div class="annotation-inner">
+            <p class="annotation-text">${q.annotation}</p>
+            <div class="position-bar-wrap">
+              <div class="position-dot" style="left:${q.position * 100}%"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      card.addEventListener("click", () => toggleCard(card));
+      card.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCard(card); }
+      });
+
+      container.appendChild(card);
+    });
+  });
+}
+
+function toggleCard(card) {
+  const isActive = card.classList.contains("active");
+
+  // Close all
+  document.querySelectorAll(".card.active").forEach(c => {
+    c.classList.remove("active");
+    c.setAttribute("aria-expanded", "false");
+  });
+
+  // Open clicked (if it wasn't already open)
+  if (!isActive) {
+    card.classList.add("active");
+    card.setAttribute("aria-expanded", "true");
+
+    // Scroll into view on mobile if needed
+    setTimeout(() => {
+      const rect = card.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight) {
+        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }, 350);
+  }
+}
+
+// ---------- INIT ----------
+renderSpectrum();
+renderCards();
+window.addEventListener("resize", renderSpectrum);
+</script>
+</body>
+</html>

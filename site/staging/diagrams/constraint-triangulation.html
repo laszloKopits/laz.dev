@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Constraint Triangulation — Napkin Futurist</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a0f;
+    color: #e0e0e8;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #header {
+    text-align: center;
+    padding: 16px 16px 4px;
+    flex-shrink: 0;
+  }
+
+  #header h1 {
+    font-size: clamp(18px, 4vw, 28px);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  #header .brand {
+    font-size: clamp(10px, 2vw, 13px);
+    color: #6b7280;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  #query-box {
+    text-align: center;
+    padding: 6px 16px 2px;
+    flex-shrink: 0;
+  }
+
+  #query-box .query {
+    display: inline-block;
+    font-size: clamp(11px, 2.2vw, 14px);
+    color: #9ca3af;
+    font-style: italic;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 6px 14px;
+  }
+
+  #viz-container {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+  }
+
+  #viz-container svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  #description-area {
+    text-align: center;
+    padding: 8px 20px;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  #step-description {
+    font-size: clamp(12px, 2.5vw, 16px);
+    line-height: 1.5;
+    color: #d1d5db;
+    max-width: 640px;
+    transition: opacity 0.3s ease;
+  }
+
+  #controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 6px));
+    flex-shrink: 0;
+  }
+
+  .nav-btn {
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    min-height: 44px;
+  }
+
+  #prev-btn {
+    background: rgba(255,255,255,0.06);
+    color: #9ca3af;
+    padding: 12px 20px;
+  }
+  #prev-btn:hover { background: rgba(255,255,255,0.1); color: #e0e0e8; }
+  #prev-btn:disabled { opacity: 0.25; cursor: default; }
+
+  #next-btn {
+    background: linear-gradient(135deg, #7c3aed, #3b82f6);
+    color: #fff;
+    padding: 12px 28px;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.35);
+  }
+  #next-btn:hover { box-shadow: 0 4px 28px rgba(99,102,241,0.55); transform: translateY(-1px); }
+  #next-btn:disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
+
+  #step-dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: all 0.3s ease;
+  }
+  .dot.active {
+    background: #818cf8;
+    box-shadow: 0 0 8px rgba(129,140,248,0.6);
+    transform: scale(1.25);
+  }
+
+  /* Constraint labels inside SVG */
+  .constraint-label {
+    font-size: 13px;
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: #0a0a0f;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  .answer-label {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  @media (max-width: 480px) {
+    #controls { gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 6px)); }
+    .nav-btn { font-size: 13px; min-height: 40px; }
+    #prev-btn { padding: 10px 14px; }
+    #next-btn { padding: 10px 22px; }
+    .constraint-label { font-size: 10px; }
+    .answer-label { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Constraint Triangulation</h1>
+  <div class="brand">Napkin Futurist</div>
+</div>
+
+<div id="query-box">
+  <span class="query">"How much of Chipotle's market cap is due to real estate?"</span>
+</div>
+
+<div id="viz-container">
+  <svg id="viz"></svg>
+</div>
+
+<div id="description-area">
+  <div id="step-description"></div>
+</div>
+
+<div id="controls">
+  <button class="nav-btn" id="prev-btn" disabled>&larr; Back</button>
+  <div id="step-dots"></div>
+  <button class="nav-btn" id="next-btn">Next &rarr;</button>
+</div>
+
+<script>
+(function () {
+  // ── Configuration ──────────────────────────────────────────────
+  const STEPS = [
+    {
+      id: 0,
+      title: "LLM's Answer",
+      desc: "The LLM gives a fuzzy answer — a region of possibility, not a point.",
+      cloud: { sx: 1.0, sy: 1.0 },
+      constraints: [],
+    },
+    {
+      id: 1,
+      title: "Web Search Constraint",
+      desc: "Web search adds a hard constraint — eliminating impossible answers.",
+      cloud: { sx: 0.45, sy: 1.0 },
+      constraints: ["web"],
+    },
+    {
+      id: 2,
+      title: "Code Execution Constraint",
+      desc: "Code execution computes derived facts — further narrowing the cloud.",
+      cloud: { sx: 0.45, sy: 0.38 },
+      constraints: ["web", "code"],
+    },
+    {
+      id: 3,
+      title: "Verification Constraint",
+      desc: "Verification projects the answer onto the real manifold.",
+      cloud: { sx: 0.08, sy: 0.08 },
+      constraints: ["web", "code", "verify"],
+    },
+    {
+      id: 4,
+      title: "Grounded Answer",
+      desc: "Each agent step is a projection operation. Multiple constraints triangulate the truth.",
+      cloud: { sx: 0.0, sy: 0.0 },
+      constraints: ["web", "code", "verify"],
+      showAnswer: true,
+    },
+  ];
+
+  const TOTAL = STEPS.length;
+  const N_PARTICLES = 350;
+  const TRANSITION_MS = 800;
+
+  // Constraint visual definitions
+  const CONSTRAINT_DEFS = {
+    web:    { color: "#22d3ee", angle: 90,  label: "Web Search: Chipotle market cap = $85B" },
+    code:   { color: "#4ade80", angle: 0,   label: "Code: Real estate value ≈ $4–6B (SEC filings)" },
+    verify: { color: "#facc15", angle: 45,  label: "Verification: Cross-ref analyst reports" },
+  };
+
+  // ── State ──────────────────────────────────────────────────────
+  let currentStep = 0;
+  let animating = false;
+  let width, height, cx, cy, cloudRadius;
+
+  // ── DOM refs ───────────────────────────────────────────────────
+  const svg = d3.select("#viz");
+  const descEl = document.getElementById("step-description");
+  const prevBtn = document.getElementById("prev-btn");
+  const nextBtn = document.getElementById("next-btn");
+  const dotsContainer = document.getElementById("step-dots");
+
+  // ── Build dots ─────────────────────────────────────────────────
+  for (let i = 0; i < TOTAL; i++) {
+    const d = document.createElement("div");
+    d.className = "dot" + (i === 0 ? " active" : "");
+    dotsContainer.appendChild(d);
+  }
+  const dots = dotsContainer.querySelectorAll(".dot");
+
+  // ── Particle data ──────────────────────────────────────────────
+  // Each particle has a base offset (bx, by) sampled from a 2D gaussian,
+  // plus current screen position (x, y) which we animate.
+  const rng = d3.randomNormal(0, 1);
+  const particles = d3.range(N_PARTICLES).map(() => {
+    const bx = rng() * 0.33;  // normalised -1..1 ish
+    const by = rng() * 0.33;
+    const r = Math.sqrt(bx * bx + by * by);
+    return {
+      bx, by,
+      x: 0, y: 0,
+      r: 2 + Math.random() * 3.5,
+      opacity: Math.max(0.05, 0.55 - r * 0.7 + Math.random() * 0.15),
+    };
+  });
+
+  // ── SVG groups ─────────────────────────────────────────────────
+  // Defs for glow filter
+  svg.append("defs").html(`
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="bigGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="cloudGrad">
+      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.5"/>
+      <stop offset="60%" stop-color="#6366f1" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#4f46e5" stop-opacity="0"/>
+    </radialGradient>
+  `);
+
+  const gConstraints = svg.append("g").attr("class", "constraints");
+  const gCloud = svg.append("g").attr("class", "cloud");
+  const gAnswer = svg.append("g").attr("class", "answer").style("opacity", 0);
+
+  // ── Create particle circles ────────────────────────────────────
+  const circles = gCloud.selectAll("circle")
+    .data(particles)
+    .join("circle")
+    .attr("r", d => d.r)
+    .attr("fill", "#818cf8")
+    .attr("opacity", d => d.opacity);
+
+  // ── Answer elements ────────────────────────────────────────────
+  gAnswer.append("circle").attr("r", 18).attr("fill", "#fbbf24").attr("filter", "url(#bigGlow)").attr("class", "pulse-ring");
+  gAnswer.append("circle").attr("r", 7).attr("fill", "#fff").attr("filter", "url(#glow)");
+  gAnswer.append("text")
+    .attr("class", "answer-label")
+    .attr("y", -32)
+    .attr("text-anchor", "middle")
+    .attr("fill", "#fef3c7")
+    .attr("filter", "url(#glow)")
+    .text("~5–7% of market cap");
+
+  // ── Sizing ─────────────────────────────────────────────────────
+  function measure() {
+    const rect = document.getElementById("viz-container").getBoundingClientRect();
+    width = rect.width;
+    height = rect.height;
+    cx = width / 2;
+    cy = height / 2;
+    cloudRadius = Math.min(width, height) * 0.40;
+    svg.attr("viewBox", `0 0 ${width} ${height}`);
+  }
+
+  // ── Compute particle positions for a given step ────────────────
+  function particlePos(d, step) {
+    const s = STEPS[step];
+    const sx = s.cloud.sx;
+    const sy = s.cloud.sy;
+    return {
+      x: cx + d.bx * cloudRadius * sx,
+      y: cy + d.by * cloudRadius * sy,
+    };
+  }
+
+  // ── Draw / transition to step ──────────────────────────────────
+  function goToStep(step, animate = true) {
+    if (step < 0 || step >= TOTAL || animating) return;
+    animating = true;
+    currentStep = step;
+    const s = STEPS[step];
+    const dur = animate ? TRANSITION_MS : 0;
+
+    // Update buttons
+    prevBtn.disabled = step === 0;
+    nextBtn.disabled = step === TOTAL - 1;
+    nextBtn.textContent = step === TOTAL - 1 ? "Done" : "Next →";
+
+    // Update dots
+    dots.forEach((d, i) => d.classList.toggle("active", i === step));
+
+    // Description fade
+    descEl.style.opacity = 0;
+    setTimeout(() => {
+      descEl.textContent = s.desc;
+      descEl.style.opacity = 1;
+    }, animate ? 200 : 0);
+
+    // ── Particles ────────────────────────────────────────────────
+    const isCollapsed = s.cloud.sx === 0;
+    circles.transition().duration(dur).ease(d3.easeCubicInOut)
+      .attr("cx", d => {
+        if (isCollapsed) return cx;
+        return particlePos(d, step).x;
+      })
+      .attr("cy", d => {
+        if (isCollapsed) return cy;
+        return particlePos(d, step).y;
+      })
+      .attr("opacity", d => {
+        if (isCollapsed) return 0;
+        return d.opacity;
+      });
+
+    // ── Constraints ──────────────────────────────────────────────
+    const allKeys = ["web", "code", "verify"];
+    allKeys.forEach(key => {
+      const visible = s.constraints.includes(key);
+      const def = CONSTRAINT_DEFS[key];
+      let group = gConstraints.select(`.c-${key}`);
+
+      if (group.empty()) {
+        group = gConstraints.append("g").attr("class", `c-${key}`).style("opacity", 0);
+        // We draw a long line through the center at the given angle
+        const len = Math.max(width, height);
+        const rad = (def.angle * Math.PI) / 180;
+        const dx = Math.cos(rad) * len;
+        const dy = Math.sin(rad) * len;
+
+        // Offset the constraint line from center based on the step it first appears
+        let offsetX = 0, offsetY = 0;
+        if (key === "web") {
+          // vertical line slightly right of center (cloud squeezes horizontally)
+          offsetX = cloudRadius * 0.45 * 0.15;
+        }
+        if (key === "code") {
+          offsetY = -cloudRadius * 0.38 * 0.1;
+        }
+        if (key === "verify") {
+          offsetX = cloudRadius * 0.05;
+          offsetY = cloudRadius * 0.05;
+        }
+
+        group.append("line")
+          .attr("x1", cx + offsetX - dx)
+          .attr("y1", cy + offsetY - dy)
+          .attr("x2", cx + offsetX + dx)
+          .attr("y2", cy + offsetY + dy)
+          .attr("stroke", def.color)
+          .attr("stroke-width", 2)
+          .attr("stroke-dasharray", "6 4")
+          .attr("opacity", 0.6);
+
+        // Label placement per constraint
+        let tlx, tly, tAnchor;
+        if (key === "web") {
+          tlx = cx + offsetX + cloudRadius * 0.5 + 12;
+          tly = cy - cloudRadius * 0.6;
+          tAnchor = "start";
+        } else if (key === "code") {
+          tlx = cx;
+          tly = cy + offsetY - cloudRadius * 0.42 - 10;
+          tAnchor = "middle";
+        } else {
+          tlx = cx + offsetX + cloudRadius * 0.25;
+          tly = cy + offsetY - cloudRadius * 0.25 - 14;
+          tAnchor = "start";
+        }
+
+        group.append("text")
+          .attr("class", "constraint-label")
+          .attr("x", tlx)
+          .attr("y", tly)
+          .attr("text-anchor", tAnchor)
+          .attr("fill", def.color)
+          .text(def.label);
+      }
+
+      group.transition().duration(dur).ease(d3.easeCubicInOut)
+        .style("opacity", visible ? 1 : 0);
+    });
+
+    // ── Answer point ─────────────────────────────────────────────
+    gAnswer.attr("transform", `translate(${cx},${cy})`);
+    gAnswer.transition().duration(dur).ease(d3.easeCubicInOut)
+      .style("opacity", s.showAnswer ? 1 : 0);
+
+    // Pulsing animation for the answer point
+    if (s.showAnswer) {
+      pulseAnswer();
+    } else {
+      gAnswer.select(".pulse-ring").interrupt("pulse");
+    }
+
+    setTimeout(() => { animating = false; }, dur);
+  }
+
+  function pulseAnswer() {
+    const ring = gAnswer.select(".pulse-ring");
+    (function loop() {
+      ring.transition("pulse").duration(1000).ease(d3.easeSinInOut)
+        .attr("r", 24).attr("opacity", 0.3)
+        .transition("pulse").duration(1000).ease(d3.easeSinInOut)
+        .attr("r", 18).attr("opacity", 0.55)
+        .on("end", loop);
+    })();
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────
+  function advance() { goToStep(currentStep + 1); }
+  function retreat() { goToStep(currentStep - 1); }
+
+  nextBtn.addEventListener("click", advance);
+  prevBtn.addEventListener("click", retreat);
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); advance(); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); retreat(); }
+  });
+
+  // Touch swipe
+  let touchStartX = 0;
+  document.addEventListener("touchstart", e => { touchStartX = e.changedTouches[0].clientX; }, { passive: true });
+  document.addEventListener("touchend", e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) {
+      dx < 0 ? advance() : retreat();
+    }
+  }, { passive: true });
+
+  // ── Init & resize ──────────────────────────────────────────────
+  function init() {
+    measure();
+    // Reposition constraint groups (remove and rebuild on resize)
+    gConstraints.selectAll("*").remove();
+    goToStep(currentStep, false);
+  }
+
+  window.addEventListener("resize", () => {
+    init();
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>

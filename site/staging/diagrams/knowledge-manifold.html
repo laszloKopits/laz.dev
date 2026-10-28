@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>The Knowledge Manifold — Napkin Futurist</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    color: #e0e0e8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #canvas-container {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  canvas { display: block; }
+
+  /* Header */
+  .header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    text-align: center;
+    padding: 24px 20px 12px;
+    pointer-events: none;
+  }
+  .header h1 {
+    font-size: clamp(20px, 4vw, 32px);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #ffffff;
+    text-shadow: 0 0 40px rgba(100, 200, 255, 0.3);
+  }
+  .header .brand {
+    font-size: clamp(10px, 2vw, 13px);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(180, 200, 220, 0.5);
+    margin-top: 4px;
+  }
+
+  /* Message bar */
+  .message-bar {
+    position: fixed;
+    top: clamp(70px, 12vh, 90px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    text-align: center;
+    pointer-events: none;
+    max-width: 600px;
+    width: 90%;
+  }
+  .message-bar p {
+    font-size: clamp(12px, 2.5vw, 15px);
+    line-height: 1.5;
+    color: rgba(200, 210, 230, 0.75);
+    font-style: italic;
+    transition: opacity 0.5s ease;
+    background: rgba(10, 10, 15, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(100, 200, 255, 0.08);
+  }
+
+  /* Controls */
+  .controls {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 8px));
+    background: linear-gradient(to top, rgba(10, 10, 15, 0.85) 0%, transparent 100%);
+    pointer-events: none;
+  }
+  .controls button {
+    pointer-events: all;
+    padding: 12px 24px;
+    min-height: 44px;
+    border: 1px solid rgba(100, 200, 255, 0.2);
+    border-radius: 999px;
+    background: rgba(20, 22, 35, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: rgba(180, 200, 220, 0.8);
+    font-family: inherit;
+    font-size: clamp(13px, 2.5vw, 14px);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+  .controls button:hover {
+    background: rgba(40, 50, 80, 0.8);
+    border-color: rgba(100, 200, 255, 0.4);
+    color: #fff;
+  }
+  .controls button.active {
+    background: rgba(60, 130, 200, 0.35);
+    border-color: rgba(100, 200, 255, 0.6);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(80, 180, 255, 0.15);
+  }
+
+  /* Hint */
+  .hint {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    pointer-events: none;
+    font-size: 12px;
+    color: rgba(180, 200, 220, 0.35);
+    text-align: center;
+    transition: opacity 0.5s;
+  }
+
+  /* Agent step labels */
+  .step-label {
+    position: fixed;
+    z-index: 15;
+    pointer-events: none;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(10, 10, 15, 0.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>The Knowledge Manifold</h1>
+  <div class="brand">Napkin Futurist</div>
+</div>
+
+<div class="message-bar">
+  <p id="mode-message">Select a mode to explore how Search, LLMs, and Agents interact with knowledge</p>
+</div>
+
+<div id="canvas-container"></div>
+
+<div class="hint" id="hint">Drag to rotate &middot; Scroll to zoom</div>
+
+<div class="controls">
+  <button id="btn-search" onclick="setMode('search')">Search</button>
+  <button id="btn-llm" onclick="setMode('llm')">LLM</button>
+  <button id="btn-agent" onclick="setMode('agent')">Agent</button>
+</div>
+
+<!-- Step labels for agent mode -->
+<div class="step-label" id="label-0" style="color: #ff9944;">Hallucinated Point</div>
+<div class="step-label" id="label-1" style="color: #66ddaa;">Web Search</div>
+<div class="step-label" id="label-2" style="color: #55ccff;">Code Execution</div>
+<div class="step-label" id="label-3" style="color: #aaddff;">Verification</div>
+<div class="step-label" id="label-4" style="color: #00ffaa;">Grounded</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ──────────────────────────────────────────
+// Globals
+// ──────────────────────────────────────────
+let scene, camera, renderer, clock;
+let dataPoints = [];       // {pos: Vector3, mesh, glowMesh}
+let surfaceMesh = null;
+let hallucinationMeshes = [];
+let searchBeam = null;
+let selectedPoint = null;
+let queryMarker = null;
+let agentPath = null;
+let agentDot = null;
+let agentSteps = [];
+let agentAnimProgress = 0;
+let agentAnimating = false;
+let currentMode = null;
+let raycaster, mouse;
+let orbitAngle = 0;
+let orbitRadius = 8;
+let orbitHeight = 4;
+let isUserInteracting = false;
+let interactionTimeout = null;
+let surfaceGeomData = null;
+
+const MESSAGES = {
+  search: "Search can only retrieve what's already mapped",
+  llm: "LLMs map the general manifold — but hallucinate where data is sparse",
+  agent: "Agents iteratively project hallucinated points onto the real manifold"
+};
+
+// ──────────────────────────────────────────
+// Math: Gaussian mixture surface
+// ──────────────────────────────────────────
+const gaussians = [];
+const NUM_GAUSSIANS = 7;
+
+function initGaussians() {
+  for (let i = 0; i < NUM_GAUSSIANS; i++) {
+    gaussians.push({
+      cx: (Math.random() - 0.5) * 6,
+      cz: (Math.random() - 0.5) * 6,
+      amp: 0.6 + Math.random() * 1.4,
+      sx: 0.8 + Math.random() * 1.5,
+      sz: 0.8 + Math.random() * 1.5,
+    });
+  }
+}
+
+function surfaceY(x, z) {
+  let y = 0;
+  for (const g of gaussians) {
+    const dx = x - g.cx, dz = z - g.cz;
+    y += g.amp * Math.exp(-(dx * dx) / (2 * g.sx * g.sx) - (dz * dz) / (2 * g.sz * g.sz));
+  }
+  return y;
+}
+
+// ──────────────────────────────────────────
+// Init
+// ──────────────────────────────────────────
+function init() {
+  initGaussians();
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0a0a0f, 0.04);
+  clock = new THREE.Clock();
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(6, 5, 6);
+  camera.lookAt(0, 0.5, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x0a0a0f, 1);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0x334466, 0.6);
+  scene.add(ambient);
+  const dir1 = new THREE.DirectionalLight(0x6688cc, 0.8);
+  dir1.position.set(5, 10, 5);
+  scene.add(dir1);
+  const dir2 = new THREE.DirectionalLight(0x443366, 0.4);
+  dir2.position.set(-5, 5, -5);
+  scene.add(dir2);
+
+  // Grid helper (subtle)
+  const gridSize = 12;
+  const gridGeo = new THREE.BufferGeometry();
+  const gridVerts = [];
+  const gridStep = 1;
+  for (let i = -gridSize / 2; i <= gridSize / 2; i += gridStep) {
+    gridVerts.push(-gridSize / 2, -0.5, i, gridSize / 2, -0.5, i);
+    gridVerts.push(i, -0.5, -gridSize / 2, i, -0.5, gridSize / 2);
+  }
+  gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(gridVerts, 3));
+  const gridMat = new THREE.LineBasicMaterial({ color: 0x1a1a2e, transparent: true, opacity: 0.4 });
+  scene.add(new THREE.LineSegments(gridGeo, gridMat));
+
+  // Create data points
+  createDataPoints();
+
+  // Raycaster for click interaction
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  // Events
+  window.addEventListener('resize', onResize);
+  renderer.domElement.addEventListener('pointerdown', onPointerDown);
+  renderer.domElement.addEventListener('pointermove', onPointerMove);
+  renderer.domElement.addEventListener('pointerup', onPointerUp);
+  renderer.domElement.addEventListener('click', onClick);
+  renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
+  renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
+  renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
+
+  setMode('search');
+  animate();
+}
+
+// ──────────────────────────────────────────
+// Data Points
+// ──────────────────────────────────────────
+function createDataPoints() {
+  const pointGeo = new THREE.SphereGeometry(0.06, 16, 16);
+  const glowGeo = new THREE.SphereGeometry(0.12, 16, 16);
+
+  for (let i = 0; i < 40; i++) {
+    const x = (Math.random() - 0.5) * 7;
+    const z = (Math.random() - 0.5) * 7;
+    const y = surfaceY(x, z) + (Math.random() - 0.5) * 0.15;
+
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x00ddcc,
+      emissive: 0x00aaaa,
+      emissiveIntensity: 0.6,
+      metalness: 0.3,
+      roughness: 0.4,
+    });
+    const mesh = new THREE.Mesh(pointGeo, mat);
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0x00ffee,
+      transparent: true,
+      opacity: 0.15,
+    });
+    const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+    glowMesh.position.copy(mesh.position);
+    scene.add(glowMesh);
+
+    dataPoints.push({ pos: new THREE.Vector3(x, y, z), mesh, glowMesh, baseMat: mat });
+  }
+}
+
+// ──────────────────────────────────────────
+// Surface (LLM mode)
+// ──────────────────────────────────────────
+function createSurface() {
+  if (surfaceMesh) return;
+
+  const res = 80;
+  const size = 8;
+  const geo = new THREE.PlaneGeometry(size, size, res - 1, res - 1);
+  geo.rotateX(-Math.PI / 2);
+
+  const positions = geo.attributes.position;
+  const colors = new Float32Array(positions.count * 3);
+  surfaceGeomData = { positions, colors, res, size };
+
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i);
+    const z = positions.getZ(i);
+    const y = surfaceY(x, z);
+    positions.setY(i, y);
+
+    // Find distance to nearest data point for hallucination coloring
+    let minDist = Infinity;
+    for (const dp of dataPoints) {
+      const d = Math.sqrt((x - dp.pos.x) ** 2 + (z - dp.pos.z) ** 2);
+      if (d < minDist) minDist = d;
+    }
+
+    // Color gradient: blue/purple where data exists, orange/red in hallucination zones
+    const hallFactor = Math.min(1, Math.max(0, (minDist - 0.8) / 1.5));
+    const r = 0.15 + hallFactor * 0.7;
+    const g = 0.2 + (1 - hallFactor) * 0.3 - hallFactor * 0.1;
+    const b = 0.6 + (1 - hallFactor) * 0.3 - hallFactor * 0.4;
+    colors[i * 3] = r;
+    colors[i * 3 + 1] = Math.max(0.05, g);
+    colors[i * 3 + 2] = Math.max(0.05, b);
+  }
+
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0,
+    side: THREE.DoubleSide,
+    metalness: 0.2,
+    roughness: 0.5,
+    wireframe: false,
+  });
+
+  surfaceMesh = new THREE.Mesh(geo, mat);
+  scene.add(surfaceMesh);
+
+  // Add wireframe overlay
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: 0x4466aa,
+    transparent: true,
+    opacity: 0,
+    wireframe: true,
+  });
+  const wireMesh = new THREE.Mesh(geo, wireMat);
+  wireMesh.name = 'surfaceWire';
+  scene.add(wireMesh);
+
+  // Create hallucination glow markers
+  createHallucinationMarkers();
+}
+
+function createHallucinationMarkers() {
+  // Find areas far from data points
+  const candidates = [];
+  for (let i = 0; i < 200; i++) {
+    const x = (Math.random() - 0.5) * 7;
+    const z = (Math.random() - 0.5) * 7;
+    let minDist = Infinity;
+    for (const dp of dataPoints) {
+      const d = Math.sqrt((x - dp.pos.x) ** 2 + (z - dp.pos.z) ** 2);
+      if (d < minDist) minDist = d;
+    }
+    if (minDist > 1.5) {
+      candidates.push({ x, z, dist: minDist });
+    }
+  }
+  candidates.sort((a, b) => b.dist - a.dist);
+  const top = candidates.slice(0, 8);
+
+  for (const c of top) {
+    const y = surfaceY(c.x, c.z);
+    const glowGeo = new THREE.SphereGeometry(0.25 + c.dist * 0.08, 16, 16);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0xff6622,
+      transparent: true,
+      opacity: 0,
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.set(c.x, y, c.z);
+    scene.add(glow);
+    hallucinationMeshes.push(glow);
+  }
+}
+
+// ──────────────────────────────────────────
+// Search mode: beam to nearest point
+// ──────────────────────────────────────────
+function createQueryMarker() {
+  if (queryMarker) return;
+  const geo = new THREE.SphereGeometry(0.08, 16, 16);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0 });
+  queryMarker = new THREE.Mesh(geo, mat);
+  scene.add(queryMarker);
+}
+
+function showSearchBeam(origin, target) {
+  clearSearchBeam();
+
+  const geo = new THREE.BufferGeometry().setFromPoints([origin, target]);
+  const mat = new THREE.LineBasicMaterial({
+    color: 0x44ddff,
+    transparent: true,
+    opacity: 0.8,
+    linewidth: 2,
+  });
+  searchBeam = new THREE.Line(geo, mat);
+  scene.add(searchBeam);
+
+  // Highlight selected point
+  if (selectedPoint) {
+    selectedPoint.mesh.material.emissiveIntensity = 0.6;
+    selectedPoint.glowMesh.material.opacity = 0.15;
+  }
+  selectedPoint = findNearestPoint(origin);
+  if (selectedPoint) {
+    selectedPoint.mesh.material.emissive.set(0x44ffee);
+    selectedPoint.mesh.material.emissiveIntensity = 2.0;
+    selectedPoint.glowMesh.material.opacity = 0.5;
+    selectedPoint.glowMesh.scale.setScalar(2.0);
+  }
+}
+
+function clearSearchBeam() {
+  if (searchBeam) { scene.remove(searchBeam); searchBeam = null; }
+  if (selectedPoint) {
+    selectedPoint.mesh.material.emissive.set(0x00aaaa);
+    selectedPoint.mesh.material.emissiveIntensity = 0.6;
+    selectedPoint.glowMesh.material.opacity = 0.15;
+    selectedPoint.glowMesh.scale.setScalar(1.0);
+    selectedPoint = null;
+  }
+}
+
+function findNearestPoint(pos) {
+  let best = null, bestDist = Infinity;
+  for (const dp of dataPoints) {
+    const d = pos.distanceTo(dp.pos);
+    if (d < bestDist) { bestDist = d; best = dp; }
+  }
+  return best;
+}
+
+// ──────────────────────────────────────────
+// Agent mode
+// ──────────────────────────────────────────
+function setupAgentAnimation() {
+  clearAgentPath();
+
+  // Pick a hallucination point (far from data)
+  let bestX = 0, bestZ = 0, bestDist = 0;
+  for (let i = 0; i < 100; i++) {
+    const x = (Math.random() - 0.5) * 5;
+    const z = (Math.random() - 0.5) * 5;
+    let minD = Infinity;
+    for (const dp of dataPoints) {
+      const d = Math.sqrt((x - dp.pos.x) ** 2 + (z - dp.pos.z) ** 2);
+      if (d < minD) minD = d;
+    }
+    if (minD > bestDist) { bestDist = minD; bestX = x; bestZ = z; }
+  }
+
+  const startY = surfaceY(bestX, bestZ) + 0.8; // Start above the surface (hallucinated)
+  const startPos = new THREE.Vector3(bestX, startY, bestZ);
+
+  // Find nearest real data point as target
+  let nearestDP = null, nearestDist = Infinity;
+  for (const dp of dataPoints) {
+    const d = startPos.distanceTo(dp.pos);
+    if (d < nearestDist) { nearestDist = d; nearestDP = dp; }
+  }
+  const endPos = nearestDP.pos.clone();
+
+  // Build intermediate steps
+  const steps = [];
+  steps.push(startPos.clone()); // 0: Hallucinated
+  // Step 1: Web Search - move partway toward target, drop slightly
+  const s1 = startPos.clone().lerp(endPos, 0.3);
+  s1.y = surfaceY(s1.x, s1.z) + 0.4;
+  steps.push(s1);
+  // Step 2: Code Execution - closer
+  const s2 = startPos.clone().lerp(endPos, 0.6);
+  s2.y = surfaceY(s2.x, s2.z) + 0.15;
+  steps.push(s2);
+  // Step 3: Verification - very close
+  const s3 = startPos.clone().lerp(endPos, 0.85);
+  s3.y = surfaceY(s3.x, s3.z) + 0.05;
+  steps.push(s3);
+  // Step 4: Grounded
+  steps.push(endPos.clone());
+
+  agentSteps = steps;
+  agentAnimProgress = 0;
+  agentAnimating = true;
+
+  // Create the moving dot
+  const dotGeo = new THREE.SphereGeometry(0.1, 16, 16);
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0x44ff88 });
+  agentDot = new THREE.Mesh(dotGeo, dotMat);
+  agentDot.position.copy(steps[0]);
+  scene.add(agentDot);
+
+  // Create trail line (will be updated)
+  const trailGeo = new THREE.BufferGeometry();
+  const trailPositions = new Float32Array(steps.length * 3);
+  for (let i = 0; i < steps.length; i++) {
+    trailPositions[i * 3] = steps[0].x;
+    trailPositions[i * 3 + 1] = steps[0].y;
+    trailPositions[i * 3 + 2] = steps[0].z;
+  }
+  trailGeo.setAttribute('position', new THREE.Float32BufferAttribute(trailPositions, 3));
+  const trailMat = new THREE.LineBasicMaterial({
+    color: 0x66ffaa,
+    transparent: true,
+    opacity: 0.7,
+  });
+  agentPath = new THREE.Line(trailGeo, trailMat);
+  scene.add(agentPath);
+
+  // Highlight target point
+  nearestDP.mesh.material.emissive.set(0x00ffaa);
+  nearestDP.mesh.material.emissiveIntensity = 2.0;
+  nearestDP.glowMesh.material.opacity = 0.5;
+  nearestDP.glowMesh.scale.setScalar(2.0);
+  selectedPoint = nearestDP;
+}
+
+function clearAgentPath() {
+  if (agentPath) { scene.remove(agentPath); agentPath = null; }
+  if (agentDot) { scene.remove(agentDot); agentDot = null; }
+  agentSteps = [];
+  agentAnimating = false;
+  agentAnimProgress = 0;
+  hideStepLabels();
+  if (selectedPoint) {
+    selectedPoint.mesh.material.emissive.set(0x00aaaa);
+    selectedPoint.mesh.material.emissiveIntensity = 0.6;
+    selectedPoint.glowMesh.material.opacity = 0.15;
+    selectedPoint.glowMesh.scale.setScalar(1.0);
+    selectedPoint = null;
+  }
+}
+
+function hideStepLabels() {
+  for (let i = 0; i < 5; i++) {
+    document.getElementById('label-' + i).style.opacity = '0';
+  }
+}
+
+function updateStepLabels() {
+  if (!agentSteps.length) return;
+  const currentStep = Math.min(4, Math.floor(agentAnimProgress));
+
+  for (let i = 0; i < 5; i++) {
+    const el = document.getElementById('label-' + i);
+    if (i <= currentStep && agentSteps[i]) {
+      const pos = agentSteps[i].clone();
+      pos.project(camera);
+      const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
+      el.style.left = x + 'px';
+      el.style.top = (y - 28) + 'px';
+      el.style.transform = 'translateX(-50%)';
+      el.style.opacity = i === currentStep ? '1' : '0.4';
+    } else {
+      el.style.opacity = '0';
+    }
+  }
+}
+
+// ──────────────────────────────────────────
+// Mode management
+// ──────────────────────────────────────────
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn-search').classList.toggle('active', mode === 'search');
+  document.getElementById('btn-llm').classList.toggle('active', mode === 'llm');
+  document.getElementById('btn-agent').classList.toggle('active', mode === 'agent');
+  document.getElementById('mode-message').textContent = MESSAGES[mode];
+  document.getElementById('hint').textContent =
+    mode === 'search' ? 'Click on the scene to query a point' :
+    mode === 'agent' ? 'Watch the agent correct its hallucination' :
+    'Drag to rotate \u00b7 Scroll to zoom';
+
+  // Cleanup previous mode artifacts
+  clearSearchBeam();
+  clearAgentPath();
+
+  // Surface visibility
+  if (mode === 'llm' || mode === 'agent') {
+    createSurface();
+    animateSurfaceIn();
+  } else {
+    animateSurfaceOut();
+  }
+
+  // Agent mode setup
+  if (mode === 'agent') {
+    createSurface();
+    setTimeout(() => setupAgentAnimation(), 800);
+  }
+}
+
+function animateSurfaceIn() {
+  if (!surfaceMesh) return;
+  const wire = scene.getObjectByName('surfaceWire');
+  const targetOpacity = 0.35;
+  const wireTarget = 0.08;
+  const step = () => {
+    if (!surfaceMesh) return;
+    surfaceMesh.material.opacity += (targetOpacity - surfaceMesh.material.opacity) * 0.08;
+    if (wire) wire.material.opacity += (wireTarget - wire.material.opacity) * 0.08;
+    for (const h of hallucinationMeshes) {
+      h.material.opacity += (0.2 - h.material.opacity) * 0.06;
+    }
+    if (Math.abs(surfaceMesh.material.opacity - targetOpacity) > 0.01) {
+      requestAnimationFrame(step);
+    }
+  };
+  step();
+}
+
+function animateSurfaceOut() {
+  if (!surfaceMesh) return;
+  const wire = scene.getObjectByName('surfaceWire');
+  const step = () => {
+    if (!surfaceMesh) return;
+    surfaceMesh.material.opacity *= 0.9;
+    if (wire) wire.material.opacity *= 0.9;
+    for (const h of hallucinationMeshes) {
+      h.material.opacity *= 0.9;
+    }
+    if (surfaceMesh.material.opacity > 0.005) {
+      requestAnimationFrame(step);
+    } else {
+      surfaceMesh.material.opacity = 0;
+      if (wire) wire.material.opacity = 0;
+      for (const h of hallucinationMeshes) h.material.opacity = 0;
+    }
+  };
+  step();
+}
+
+// ──────────────────────────────────────────
+// Orbit controls (manual, lightweight)
+// ──────────────────────────────────────────
+let pointerDown = false;
+let pointerStart = { x: 0, y: 0 };
+let pointerOrigin = { x: 0, y: 0 }; // original start for drag threshold
+let didDrag = false;
+let orbitTarget = { angle: 0, height: 4 };
+let pinchDist = 0;
+
+function onPointerDown(e) {
+  pointerDown = true;
+  didDrag = false;
+  pointerStart.x = e.clientX;
+  pointerStart.y = e.clientY;
+  pointerOrigin.x = e.clientX;
+  pointerOrigin.y = e.clientY;
+  isUserInteracting = true;
+  clearTimeout(interactionTimeout);
+}
+function onPointerMove(e) {
+  if (!pointerDown) return;
+  const dx = e.clientX - pointerStart.x;
+  const dy = e.clientY - pointerStart.y;
+  const totalDx = e.clientX - pointerOrigin.x;
+  const totalDy = e.clientY - pointerOrigin.y;
+  if (Math.abs(totalDx) > 8 || Math.abs(totalDy) > 8) didDrag = true;
+  orbitAngle -= dx * 0.005;
+  orbitHeight = Math.max(1, Math.min(10, orbitHeight + dy * 0.02));
+  pointerStart.x = e.clientX;
+  pointerStart.y = e.clientY;
+}
+function onPointerUp() {
+  pointerDown = false;
+  interactionTimeout = setTimeout(() => { isUserInteracting = false; }, 3000);
+}
+function onWheel(e) {
+  e.preventDefault();
+  orbitRadius = Math.max(3, Math.min(18, orbitRadius + e.deltaY * 0.005));
+  isUserInteracting = true;
+  clearTimeout(interactionTimeout);
+  interactionTimeout = setTimeout(() => { isUserInteracting = false; }, 3000);
+}
+function onTouchStart(e) {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchDist = Math.sqrt(dx * dx + dy * dy);
+  }
+}
+function onTouchMove(e) {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const newDist = Math.sqrt(dx * dx + dy * dy);
+    orbitRadius = Math.max(3, Math.min(18, orbitRadius - (newDist - pinchDist) * 0.02));
+    pinchDist = newDist;
+  }
+}
+
+function onClick(e) {
+  if (currentMode !== 'search') return;
+  if (didDrag) return; // Don't fire click after a drag
+
+  // Cast ray to find click position on an invisible ground plane
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  // Intersect with a horizontal plane at y=0.5 (approximate surface height)
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5);
+  const intersection = new THREE.Vector3();
+  raycaster.ray.intersectPlane(plane, intersection);
+
+  if (intersection) {
+    // Snap y to surface
+    intersection.y = surfaceY(intersection.x, intersection.z);
+    createQueryMarker();
+    queryMarker.position.copy(intersection);
+    queryMarker.material.opacity = 0.8;
+    showSearchBeam(intersection, findNearestPoint(intersection).pos);
+  }
+}
+
+// ──────────────────────────────────────────
+// Resize
+// ──────────────────────────────────────────
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// ──────────────────────────────────────────
+// Animation loop
+// ──────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // Gentle auto-orbit
+  if (!isUserInteracting) {
+    orbitAngle += 0.001;
+  }
+
+  camera.position.x = Math.sin(orbitAngle) * orbitRadius;
+  camera.position.z = Math.cos(orbitAngle) * orbitRadius;
+  camera.position.y = orbitHeight;
+  camera.lookAt(0, 0.5, 0);
+
+  // Animate data point pulsing
+  for (let i = 0; i < dataPoints.length; i++) {
+    const dp = dataPoints[i];
+    if (dp !== selectedPoint) {
+      const pulse = 0.12 + Math.sin(t * 1.5 + i * 0.4) * 0.05;
+      dp.glowMesh.material.opacity = pulse;
+      const s = 1.0 + Math.sin(t * 2 + i * 0.3) * 0.1;
+      dp.glowMesh.scale.setScalar(s);
+    }
+  }
+
+  // Animate hallucination markers
+  for (let i = 0; i < hallucinationMeshes.length; i++) {
+    const h = hallucinationMeshes[i];
+    if (h.material.opacity > 0.01) {
+      const pulse = Math.sin(t * 1.2 + i * 1.5) * 0.08;
+      h.material.opacity = Math.max(0, 0.15 + pulse);
+      const s = 1.0 + Math.sin(t * 0.8 + i * 2) * 0.15;
+      h.scale.setScalar(s);
+    }
+  }
+
+  // Animate agent path
+  if (agentAnimating && agentSteps.length > 0) {
+    agentAnimProgress += 0.008;
+    if (agentAnimProgress >= 4) {
+      agentAnimProgress = 4;
+      agentAnimating = false;
+      // Loop after a pause
+      setTimeout(() => {
+        if (currentMode === 'agent') {
+          clearAgentPath();
+          setupAgentAnimation();
+        }
+      }, 2500);
+    }
+
+    // Interpolate position
+    const seg = Math.floor(agentAnimProgress);
+    const frac = agentAnimProgress - seg;
+    if (seg < 4 && agentDot) {
+      const from = agentSteps[seg];
+      const to = agentSteps[seg + 1];
+      const eased = frac * frac * (3 - 2 * frac); // smoothstep
+      agentDot.position.lerpVectors(from, to, eased);
+
+      // Color transition: orange -> green
+      const progress = agentAnimProgress / 4;
+      const r = 1.0 - progress * 0.7;
+      const g = 0.4 + progress * 0.6;
+      const b = 0.2 + progress * 0.3;
+      agentDot.material.color.setRGB(r, g, b);
+
+      // Pulsing glow on dot
+      const dotScale = 1.0 + Math.sin(t * 6) * 0.2;
+      agentDot.scale.setScalar(dotScale);
+
+      // Update trail
+      if (agentPath) {
+        const positions = agentPath.geometry.attributes.position.array;
+        for (let i = 0; i <= seg; i++) {
+          positions[i * 3] = agentSteps[i].x;
+          positions[i * 3 + 1] = agentSteps[i].y;
+          positions[i * 3 + 2] = agentSteps[i].z;
+        }
+        // Current segment partial
+        if (seg + 1 < agentSteps.length) {
+          positions[(seg + 1) * 3] = agentDot.position.x;
+          positions[(seg + 1) * 3 + 1] = agentDot.position.y;
+          positions[(seg + 1) * 3 + 2] = agentDot.position.z;
+        }
+        agentPath.geometry.setDrawRange(0, seg + 2);
+        agentPath.geometry.attributes.position.needsUpdate = true;
+      }
+    } else if (agentDot && seg >= 4) {
+      agentDot.position.copy(agentSteps[4]);
+    }
+
+    updateStepLabels();
+  }
+
+  // Search beam pulse
+  if (searchBeam) {
+    searchBeam.material.opacity = 0.5 + Math.sin(t * 4) * 0.3;
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ──────────────────────────────────────────
+// Start
+// ──────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
