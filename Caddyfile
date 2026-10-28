@@ -3,6 +3,9 @@ laz.dev {
 	# target changes over time, and a 301 gets cached by browsers forever.
 	# To repoint: edit the URL below, commit, then
 	#   sudo cp Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+	# Old root-level copy of the article; the canonical page lives under /articles/.
+	redir /bernie-benchmark.html /articles/bernie-benchmark.html permanent
+
 	@latest path /latest /latest/
 	redir @latest https://www.youtube.com/watch?v=GGFTc25-3Mw 302
 
