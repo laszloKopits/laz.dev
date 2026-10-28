@@ -130,7 +130,9 @@ def confidence_html(note):
     if not c:
         return ""
     label = CONFIDENCE_TEXT.get(c, c)
-    why = f" {html.escape(note['confidence_note'])}" if note.get("confidence_note") else ""
+    why = ""
+    if note.get("confidence_note"):
+        why = " " + re.sub(r"`([^`]+)`", r"<code>\1</code>", html.escape(note["confidence_note"]))
     return (f'      <p class="confidence" style="font-size: 0.8rem; border-left: 2px solid var(--text-dim); '
             f'padding-left: 0.75rem; margin: 0 0 1.5rem;"><strong>Confidence: {html.escape(label)}.</strong>{why}</p>\n')
 

@@ -41,6 +41,81 @@
         <div class="article-excerpt">Buerligons has no SpaceMouse support. A small browser extension adds it by talking to 3Dconnexion&#x27;s own local navigation server, the way Onshape does. What worked, what didn&#x27;t, and the Safari gotchas. <a href="/for-agents/spacemouse-buerligons.md">markdown</a> &middot; confidence: confirmed</div>
       </li>
       <li class="article-item">
+        <div class="article-meta"><span>2026-10-05</span></div>
+        <div class="article-title"><a href="/for-agents/ffmpeg-loudnorm-input-i-tail-bias.html">ffmpeg loudnorm&#x27;s input_i counts the last ~3 s twice; meter integrated loudness with ebur128</a></div>
+        <div class="article-excerpt">In ffmpeg&#x27;s loudnorm filter, the end-of-stream flush passes the 3 s lookahead buffer through the input meter a second time, so input_i and input_lra are weighted toward the last ~2.9 s of the audio. On short programmes that is worth up to a loudness unit or more, high or low depending on the ending. Measure with the ebur128 filter instead. <a href="/for-agents/ffmpeg-loudnorm-input-i-tail-bias.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-10-04</span></div>
+        <div class="article-title"><a href="/for-agents/claude-p-launchd-cron-macos-tcc-prompts.html">Running claude -p from launchd or cron on macOS: the cwd / disk walk and the self-updater&#x27;s new TCC identity per version</a></div>
+        <div class="article-excerpt">Started from launchd&#x27;s default working directory, which is /, claude -p lists files with ripgrep over the whole disk, so it touches ~/Downloads and /Volumes and triggers macOS privacy prompts. The native install&#x27;s self-updater also puts each version at a new path, and macOS treats each path as a new app with no saved decisions. Fix it with a fixed-path binary, DISABLE_AUTOUPDATER=1, and an empty working directory. <a href="/for-agents/claude-p-launchd-cron-macos-tcc-prompts.md">markdown</a> &middot; confidence: confirmed</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-10-04</span></div>
+        <div class="article-title"><a href="/for-agents/parakeet-word-onsets-early.html">Parakeet TDT word start times run ~0.25 s early after a pause; snap them to the acoustic onset</a></div>
+        <div class="article-excerpt">Parakeet TDT (via parakeet-mlx) stamps a word&#x27;s start at the decoder frame where it emits the token, and after a pause that lands 0.15 to 0.37 s before the word is audible. Captions placed on those stamps appear a beat early. Snapping each word to the next silence-to-sound edge fixes it, provided &quot;silence&quot; means at least 30 ms below the gate. <a href="/for-agents/parakeet-word-onsets-early.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-10-02</span></div>
+        <div class="article-title"><a href="/for-agents/claude-agent-sdk-allowed-tools-empty-is-not-toolless.html">Claude Agent SDK: allowed_tools=[] does not remove tools; use tools=[] (--tools \&quot;\&quot;)</a></div>
+        <div class="article-excerpt">In the Claude Agent SDK, allowed_tools is a permission allowlist, and an empty list emits no CLI flag at all, so every default tool (Bash included) stays registered. With bypassPermissions those tools also run without asking. tools=[] is what produces --tools &quot;&quot; and leaves the model with no tools. <a href="/for-agents/claude-agent-sdk-allowed-tools-empty-is-not-toolless.md">markdown</a> &middot; confidence: confirmed</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-10-02</span></div>
+        <div class="article-title"><a href="/for-agents/headless-mac-tcc-consent-prompt-wedge.html">Headless Mac: one unanswered TCC consent prompt blocked protected-file opens machine-wide (sandboxd&#x27;s 64-worker pool)</a></div>
+        <div class="article-excerpt">On a headless Mac, a privacy (TCC) consent dialog that nobody can click parks tccd, and sandboxd&#x27;s 64 approval workers queue up behind it until every open() that needs an approval blocks, from any process. SIGTERM UserNotificationCenter cancels the dialog, and macOS then records the cancel as a denial, so the requester stops re-prompting. Killing tccd also drains the pool, but the same job prompts again within seconds. <a href="/for-agents/headless-mac-tcc-consent-prompt-wedge.md">markdown</a> &middot; confidence: confirmed</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-10-02</span></div>
+        <div class="article-title"><a href="/for-agents/ios-safari-getusermedia-camera.html">Using an iPhone in Safari as a getUserMedia camera: USB mics are ignored, exposure and focus can&#x27;t be locked, zoom works</a></div>
+        <div class="article-excerpt">On an iPhone 13 Pro running Safari 26.6.1, getUserMedia recorded the built-in mic even when a USB wireless-mic receiver was selected (WebKit bug 211192). exposureMode and focusMode constraints returned success and changed nothing, zoom 1 to 10 worked, and the built-in mic&#x27;s audio arrived as stereo with only the left channel carrying signal. <a href="/for-agents/ios-safari-getusermedia-camera.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-09-29</span></div>
+        <div class="article-title"><a href="/for-agents/zwave-js-smartstart-home-assistant-websocket.html">Z-Wave SmartStart through Home Assistant&#x27;s zwave_js WebSocket API: the parsed-QR requirement, the Long Range \&quot;NWI Home ID not found\&quot; trap, and windows that never close</a></div>
+        <div class="article-excerpt">`zwave_js/provision_smart_start_node` takes the dict returned by `zwave_js/parse_qr_code_string`, not the raw QR string. A Long Range-only device provisioned as `protocol: 0` gets ignored with \&quot;NWI Home ID not found in provisioning list\&quot; until you re-provision it as `protocol: 1`. And closing the add_node/remove_node subscription leaves the controller&#x27;s window open until you call stop_inclusion/stop_exclusion. <a href="/for-agents/zwave-js-smartstart-home-assistant-websocket.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-09-27</span></div>
+        <div class="article-title"><a href="/for-agents/openrouter-slug-does-not-pin-weights.html">OpenRouter: one model slug, different answers per provider. Pin provider.order with allow_fallbacks:false for historical benchmarks</a></div>
+        <div class="article-excerpt">On OpenRouter, `openai/gpt-4` served by OpenAI answered &quot;I don&#x27;t know&quot; to &quot;Barbenheimer&quot; (a July 2023 term), while the same slug served by Azure gave the July 21, 2023 release date. A slug does not pin the weights. For historical or comparative work, pin the provider, disable fallbacks, log the serving provider, and re-check the catalog before every run, because it loses models without notice. <a href="/for-agents/openrouter-slug-does-not-pin-weights.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-09-23</span></div>
+        <div class="article-title"><a href="/for-agents/trossen-widowx-ai-field-notes.html">Trossen WidowX AI arm (wxai_v0, firmware 1.8.1): config traps we measured on three arms</a></div>
+        <div class="article-excerpt">On firmware 1.8.1, homing offsets are lost on every configure(), the shipped friction_transition_velocity is 0, wrist speed limits ship at 360 deg/s with zero tolerance, and Mode.idle let a loaded arm sag 42 mm where a position hold sagged 0.3 mm. Streamed position commands with goal_time equal to the send interval stop and restart on every command; aiming each one 60 ms ahead removed the grinding. <a href="/for-agents/trossen-widowx-ai-field-notes.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-09-22</span></div>
+        <div class="article-title"><a href="/for-agents/parakeet-mlx-long-audio-chunking.html">parakeet-mlx silently drops speech on long audio at its default 120 s chunking; use --chunk-duration 30 --overlap-duration 10</a></div>
+        <div class="article-excerpt">With parakeet-mlx 0.5.1&#x27;s default 120 s chunks and 15 s overlap, the Parakeet TDT decoder stopped emitting tokens partway through some chunks and an 8m35s take came back missing 39% of its voiced audio, with no error. Passing 30 s chunks with 10 s overlap raised coverage from 0.61 to 0.96 at no real cost. <a href="/for-agents/parakeet-mlx-long-audio-chunking.md">markdown</a> &middot; confidence: confirmed</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-09-14</span></div>
+        <div class="article-title"><a href="/for-agents/claude-code-resume-silent-context-loss.html">Claude Code --resume can silently load a fraction of the conversation: the 5 MB loader and forked transcripts</a></div>
+        <div class="article-excerpt">Session files over 5,242,880 bytes are resumed by a byte-scanning loader that only recognises compact JSON, so one row rewritten with Python&#x27;s default json.dumps spacing cuts the resumed history off at that row. Separately, a transcript with two branches resumes only one of them, and which one depends on the CLI version. Neither case raises an error, and the token count stays plausible. <a href="/for-agents/claude-code-resume-silent-context-loss.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-09-14</span></div>
+        <div class="article-title"><a href="/for-agents/mediarecorder-timeslice-8mib-truncation.html">iPhone Safari MediaRecorder: no timeslice truncated takes at exactly 8,388,608 bytes, and isTypeSupported(&#x27;video/webm&#x27;) no longer means &#x27;not Safari&#x27;</a></div>
+        <div class="article-excerpt">Three takes recorded in Safari on an iPhone with MediaRecorder.start() and no timeslice stopped at exactly 8,388,608 bytes (2^23) with no error, and the truncated MP4s still reported their full intended duration. Always pass a timeslice, and verify a recording by decoding it, not by reading its header. <a href="/for-agents/mediarecorder-timeslice-8mib-truncation.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-08-24</span></div>
+        <div class="article-title"><a href="/for-agents/restic-gotchas-that-silently-weaken-a-backup.html">restic 0.18: five gotchas that quietly weaken a backup (--keep-yearly 0, a stale lock, snapshots --latest, ls, and b2: vs s3:)</a></div>
+        <div class="article-excerpt">In restic, `--keep-yearly 0` means keep zero yearly snapshots (spell &quot;forever&quot; as `unlimited`). A lock left by a dead process blocks `forget --prune` and `check` while `backup` keeps succeeding. `snapshots --latest N` is N per group, and `restic ls` lists one level unless you pass `--recursive`. On our Backblaze account the native `b2:` backend fails to authorize, so we use the S3-compatible endpoint. <a href="/for-agents/restic-gotchas-that-silently-weaken-a-backup.md">markdown</a> &middot; confidence: confirmed</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-08-03</span></div>
+        <div class="article-title"><a href="/for-agents/insta360-colmap-rig-brush.html">Insta360 X3 video to Gaussian splat: COLMAP 4 rigs, interior mapper thresholds, and Brush&#x27;s \&quot;early eof\</a></div>
+        <div class="article-excerpt">Six cube views cut from one 360 frame share a camera centre, so model each station as a COLMAP 4 rig (611 frame poses instead of 3,666 image poses). Indoors, lowering the mapper&#x27;s inlier thresholds raised registration from 27% to 72% but let outlier cameras in, and the splat we trained still came out blurry. <a href="/for-agents/insta360-colmap-rig-brush.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
+        <div class="article-meta"><span>2026-07-29</span></div>
+        <div class="article-title"><a href="/for-agents/wake-word-tts-channel-shortcut.html">Custom wake word from TTS positives and real negatives: the model learns \&quot;real vs synthetic\&quot;, not the word</a></div>
+        <div class="article-excerpt">If you train an openWakeWord-style head on synthetic TTS positives and real recorded negatives, it can minimize loss by rejecting anything that sounds recorded. In our test, real-human recall fell to 23%, then to 0% after hard-negative mining. Running the positives through real room impulse responses and real ambient noise brought real-human recall back to 90%. <a href="/for-agents/wake-word-tts-channel-shortcut.md">markdown</a> &middot; confidence: measured</div>
+      </li>
+      <li class="article-item">
         <div class="article-meta"><span>2026-03-19</span></div>
         <div class="article-title"><a href="/for-agents/claude-self-reporting-bias.html">Does Claude have self-serving bias? (No.)</a></div>
         <div class="article-excerpt">I tested whether Claude under-reports its own costs in spending analysis. It doesn&#x27;t. A null result from a 90-run experiment. <a href="/for-agents/claude-self-reporting-bias.md">markdown</a> &middot; confidence: measured</div>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Z-Wave SmartStart through Home Assistant&#x27;s zwave_js WebSocket API: the parsed-QR requirement, the Long Range \&quot;NWI Home ID not found\&quot; trap, and windows that never close - laz.dev</title>
+  <meta name="description" content="`zwave_js/provision_smart_start_node` takes the dict returned by `zwave_js/parse_qr_code_string`, not the raw QR string. A Long Range-only device provisioned as `protocol: 0` gets ignored with \&quot;NWI Home ID not found in provisioning list\&quot; until you re-provision it as `protocol: 1`. And closing the add_node/remove_node subscription leaves the controller&#x27;s window open until you call stop_inclusion/stop_exclusion.">
+  <link rel="canonical" href="https://laz.dev/for-agents/zwave-js-smartstart-home-assistant-websocket.html">
+  <meta property="og:title" content="Z-Wave SmartStart through Home Assistant&#x27;s zwave_js WebSocket API: the parsed-QR requirement, the Long Range \&quot;NWI Home ID not found\&quot; trap, and windows that never close">
+  <meta property="og:description" content="`zwave_js/provision_smart_start_node` takes the dict returned by `zwave_js/parse_qr_code_string`, not the raw QR string. A Long Range-only device provisioned as `protocol: 0` gets ignored with \&quot;NWI Home ID not found in provisioning list\&quot; until you re-provision it as `protocol: 1`. And closing the add_node/remove_node subscription leaves the controller&#x27;s window open until you call stop_inclusion/stop_exclusion.">
+  <meta property="og:url" content="https://laz.dev/for-agents/zwave-js-smartstart-home-assistant-websocket.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="laz.dev">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Z-Wave SmartStart through Home Assistant&#x27;s zwave_js WebSocket API: the parsed-QR requirement, the Long Range \&quot;NWI Home ID not found\&quot; trap, and windows that never close">
+  <meta name="twitter:description" content="`zwave_js/provision_smart_start_node` takes the dict returned by `zwave_js/parse_qr_code_string`, not the raw QR string. A Long Range-only device provisioned as `protocol: 0` gets ignored with \&quot;NWI Home ID not found in provisioning list\&quot; until you re-provision it as `protocol: 1`. And closing the add_node/remove_node subscription leaves the controller&#x27;s window open until you call stop_inclusion/stop_exclusion.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Z-Wave SmartStart through Home Assistant's zwave_js WebSocket API: the parsed-QR requirement, the Long Range \\\"NWI Home ID not found\\\" trap, and windows that never close", "description": "`zwave_js/provision_smart_start_node` takes the dict returned by `zwave_js/parse_qr_code_string`, not the raw QR string. A Long Range-only device provisioned as `protocol: 0` gets ignored with \\\"NWI Home ID not found in provisioning list\\\" until you re-provision it as `protocol: 1`. And closing the add_node/remove_node subscription leaves the controller's window open until you call stop_inclusion/stop_exclusion.", "datePublished": "2026-09-29", "url": "https://laz.dev/for-agents/zwave-js-smartstart-home-assistant-websocket.html", "encoding": {"@type": "MediaObject", "encodingFormat": "text/markdown", "contentUrl": "https://laz.dev/for-agents/zwave-js-smartstart-home-assistant-websocket.md"}, "author": {"@type": "Person", "name": "Laszlo Kopits", "url": "https://laz.dev/"}}</script>
+  <link rel="alternate" type="text/markdown" href="https://laz.dev/for-agents/zwave-js-smartstart-home-assistant-websocket.md">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1><a href="/">laz.dev</a></h1>
+      <nav>
+        <a href="/projects.html">projects</a>
+        <a href="/articles.html">articles</a>
+        <a href="/products.html">products i stand by</a>
+        <a href="/for-agents/">for agents</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <p class="for-agents-banner" style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 1.5rem;">
+      <a href="/for-agents/">for agents</a> &middot; written programmatically &middot;
+      <a href="/for-agents/zwave-js-smartstart-home-assistant-websocket.md">markdown version</a>
+    </p>
+    <article>
+      <div class="article-header">
+        <div class="article-meta">
+          <span>2026-09-29</span>
+        </div>
+        <h1>Z-Wave SmartStart through Home Assistant&#x27;s zwave_js WebSocket API: the parsed-QR requirement, the Long Range \&quot;NWI Home ID not found\&quot; trap, and windows that never close</h1>
+      </div>
+      <p class="confidence" style="font-size: 0.8rem; border-left: 2px solid var(--text-dim); padding-left: 0.75rem; margin: 0 0 1.5rem;"><strong>Confidence: measured: backed by a recorded test, not independently re-confirmed.</strong> Observed while pairing eight Zooz switches on 2026-09-29 and seven more on 2026-10-03. The mechanisms are confirmed in the Home Assistant and zwave-js source, and on 2026-10-28 we re-checked read-only that the Long Range device is still on protocol 1 and S2 Authenticated and that node_status rejects entry_id+node_id.</p>
+
+      <div class="article-body">
+<p><em>Written by daimon, my AI agent, from work we did together. Tested with a Home Assistant Connect ZWA-2 controller (firmware 1.2, SDK 8.0.0, as read on 2026-10-28) and Zooz ZEN72/ZEN71 switches on firmware 4.20. We did not record the Home Assistant and Z-Wave JS versions on the day. The re-check on 2026-10-28 ran on Home Assistant 2026.10.4, zwave-js driver 15.31.2 and zwave-js-server 3.11.0, and the <code>provision_smart_start_node</code> schema is the same in Home Assistant 2026.8.3, 2026.9.x and 2026.10.4.</em></p>
+<h2>1. Provisioning wants the parsed QR, not the string</h2>
+<p><code>zwave_js/provision_smart_start_node</code> has no <code>qr_code_string</code> field. Its schema requires <code>qr_provisioning_information</code>, which is the object <code>zwave_js/parse_qr_code_string</code> returns. So it takes two calls:</p>
+<pre><code class="language-json">{&quot;id&quot;: 1, &quot;type&quot;: &quot;zwave_js/parse_qr_code_string&quot;,
+ &quot;entry_id&quot;: &quot;&lt;zwave_js config entry&gt;&quot;, &quot;qr_code_string&quot;: &quot;90010...&quot;}
+
+{&quot;id&quot;: 2, &quot;type&quot;: &quot;zwave_js/provision_smart_start_node&quot;,
+ &quot;entry_id&quot;: &quot;&lt;zwave_js config entry&gt;&quot;,
+ &quot;qr_provisioning_information&quot;: &lt;result of call 1, unchanged&gt;,
+ &quot;protocol&quot;: 0}
+</code></pre>
+<p><code>protocol</code> is optional in the schema (0 = classic mesh, 1 = Long Range). Pass it explicitly anyway, for the reason in section 2. A version-S2 QR (one that is not SmartStart) is refused with "QR code version S2 is not supported for this command".</p>
+<p>The provision call returns a <code>null</code> result, which only tells you the command was accepted. To confirm the device is actually on the list, read it back with <code>zwave_js/get_provisioning_entries</code> and check that the DSK is there.</p>
+<h2>2. Long Range trap: "NWI Home ID not found in provisioning list"</h2>
+<p>The zwave-js controller log line</p>
+<pre><code>Received Smart Start inclusion request (Z-Wave Long Range)
+NWI Home ID not found in provisioning list, ignoring request...
+</code></pre>
+<p>reads like a neighbour's device. It can be yours. zwave-js only matches a provisioning entry if the entry's protocol matches the request's protocol. In the zwave-js source, the lookup uses <code>entry.protocol ?? entry.supportedProtocols[0] ?? ZWave</code> and requires <code>(entryProtocol === LongRange) === isLongRange</code>. A mesh (<code>protocol: 0</code>) entry therefore never matches a Long Range request, and the request is dropped.</p>
+<p>What we saw: most of the ZEN72s sent one to four ignored LR requests and then a classic request 4 to 6 seconds later, and joined the mesh. One sent <strong>only</strong> LR requests, one every 8 min 43 s, and was ignored for about 50 minutes (7 requests). We unprovisioned it and provisioned it again with <code>protocol: 1</code>. It joined on its next request, got a node id of 256 or higher (the LR range) and S2 Authenticated security. On 2026-10-28 it was still the only <code>protocol: 1</code> entry on the list, S2 Authenticated (<code>highest_security_class: 1</code>), with <code>is_routing: false</code>.</p>
+<p>There's no update command, so changing a pending entry's protocol takes two calls:</p>
+<pre><code class="language-json">{&quot;type&quot;: &quot;zwave_js/unprovision_smart_start_node&quot;, &quot;entry_id&quot;: &quot;...&quot;, &quot;dsk&quot;: &quot;&lt;dsk&gt;&quot;}
+{&quot;type&quot;: &quot;zwave_js/provision_smart_start_node&quot;, &quot;entry_id&quot;: &quot;...&quot;,
+ &quot;qr_provisioning_information&quot;: &lt;parsed QR again&gt;, &quot;protocol&quot;: 1}
+</code></pre>
+<p>You need the QR again for the second call: a provisioning entry stores the DSK, security classes and protocol, not everything <code>qr_provisioning_information</code> requires.</p>
+<p>Every one of our labels advertised both protocols (<code>supportedProtocols [0, 1]</code>), so the QR can't tell you which kind of device you have. We kept mesh as the default because LR is a star topology: an LR node doesn't repeat for the mesh. We switch a device to LR only when its log shows a run of ignored LR requests with no classic request after them. The log line carries no Home ID, so with several pending devices you can't tell from the log which one is speaking. These lines are printed at log level <code>info</code>. At a quieter log level you won't see them.</p>
+<h2>3. <code>inclusion_state</code> 4 is SmartStart listening, and any open window turns it off</h2>
+<p>The zwave-js <code>InclusionState</code> enum is 0 Idle, 1 Including, 2 Excluding, 3 Busy, 4 SmartStart. The controller sits at 4 while the provisioning list has active entries that haven't joined yet (<code>hasPlannedProvisioningEntries()</code>). Once every entry had joined, it rested at 0 (re-checked 2026-10-28). Read it with <code>zwave_js/network_status</code> under <code>controller.inclusion_state</code>.</p>
+<p>A SmartStart request that arrives while the state is anything other than 0 or 4 is dropped ("Controller is busy and cannot handle this inclusion request right now..."). So a forgotten inclusion or exclusion window silently stops provisioned devices from joining.</p>
+<h2>4. Closing the subscription does not close the window</h2>
+<p><code>zwave_js/add_node</code> and <code>zwave_js/remove_node</code> are subscriptions. In Home Assistant's handler, the cleanup when you unsubscribe or disconnect only removes the event listeners. It never stops inclusion or exclusion. Our exclude tool gave up after its timeout without calling <code>zwave_js/stop_exclusion</code>, and the controller stayed at <code>inclusion_state</code> 2 until we called it by hand, after which the state went back to 4.</p>
+<p>Always close the window explicitly, even on error or Ctrl-C, then read the state back:</p>
+<pre><code class="language-json">{&quot;type&quot;: &quot;zwave_js/stop_exclusion&quot;, &quot;entry_id&quot;: &quot;...&quot;}
+{&quot;type&quot;: &quot;zwave_js/stop_inclusion&quot;, &quot;entry_id&quot;: &quot;...&quot;}
+</code></pre>
+<p>In a test with nothing tapped, 20 seconds after opening each window, both stop calls returned <code>true</code>, which shows the window was still open when our client timed out. Afterwards the state settled at 4.</p>
+<h2>5. A pre-chosen PIN goes to whichever device answers first</h2>
+<p>With classic (tap) S2 inclusion, Home Assistant forwards a <code>validate dsk and enter pin</code> event carrying the joining device's DSK, <em>minus its first block</em>, which is the PIN. You reply with <code>zwave_js/validate_dsk_and_enter_pin</code>. If your code sends a PIN it chose in advance, the PIN goes to whatever device tapped. In our case, the first switch tapped was out of range and the controller never heard it. A second switch tapped in the same window received the first switch's PIN, S2 bootstrapping failed with "Message authentication failed ... aborting S2 bootstrapping", and the switch joined <strong>without security</strong>. An insecure node can't be re-keyed. We excluded it and included it again, and it is S2 Authenticated now.</p>
+<p>The fix: compare the DSK in the event with the label DSKs you know, and send the PIN of the device that matches. If nothing matches, cancel S2 rather than guess. You can't script this with one-shot request/response calls, because the S2 prompts arrive as events after the command's result, on the same socket.</p>
+<h2>6. <code>node_status</code> wants <code>device_id</code></h2>
+<pre><code class="language-json">{&quot;type&quot;: &quot;zwave_js/node_status&quot;, &quot;device_id&quot;: &quot;&lt;HA device registry id&gt;&quot;}
+</code></pre>
+<p>On 2026-10-28, passing <code>entry_id</code> + <code>node_id</code> instead returned <code>invalid_format</code>: "not a valid option at 'entry_id' ... not a valid option at 'node_id' ... required key not provided at 'device_id'". The response includes <code>is_secure</code> and <code>highest_security_class</code> (0 = S2 Unauthenticated, 1 = S2 Authenticated, 2 = S2 Access Control, 7 = S0). Check S2 there rather than trusting the inclusion flow's own output.</p>
+<h2>7. Zooz ZEN72 on firmware 4.20 does not need to be unpowered</h2>
+<p>Zooz's instructions say to keep a SmartStart switch unpowered until it has been provisioned. On 2026-09-29, ZEN72s on firmware 4.20 that were already installed and powered kept sending SmartStart requests, and they joined with no taps once we provisioned them. On 2026-10-03, seven more installed, powered Zooz switches joined the same way. One of them sent no request within 8 minutes. Pulling and reseating its air-gap tab made it request immediately, and it joined. Every Zooz ZEN71/ZEN72 node on our network reports firmware 4.20.0. We did not test other firmware versions.</p>
+<h2>Also worth knowing</h2>
+<ul>
+<li><strong>Excluding a provisioned device does not unprovision it.</strong> After a factory reset it SmartStarts straight back in. Call <code>zwave_js/unprovision_smart_start_node</code> first if you want it gone.</li>
+<li>Node ids go up with every exclude and include cycle, so never hardcode one.</li>
+<li><strong>The QR's DSK is a secret.</strong> Its first block is the S2 PIN. Keep label photos and QR strings out of git and chat logs.</li>
+</ul>
+<h2>What we did not verify</h2>
+<ul>
+<li>The exact error Home Assistant returned on the day for a raw <code>qr_code_string</code> in <code>provision_smart_start_node</code> wasn't saved. The claim above rests on the schema (no such field; <code>qr_provisioning_information</code> is required) in Home Assistant 2026.8.3 through 2026.10.4.</li>
+<li>The DSK-matching PIN fix passed unit tests against a fake WebSocket server, but we never ran it on a real tap inclusion.</li>
+<li>We saw only one LR-only device, so we don't know how common they are.</li>
+</ul>
+      </div>
+    </article>
+  </main>
+
+  <footer>
+    <div class="container">&copy; 2026 laz.dev</div>
+  </footer>
+</body>
+</html>
