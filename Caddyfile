@@ -24,6 +24,15 @@ laz.dev {
 		reverse_proxy localhost:8081
 	}
 
+	# fieldnotes: private agent-forward feed (Laz + Cristian). fieldnotes.service on :8090,
+	# code ~/fieldnotes (repo laszloKopits/fieldnotes, deploy/deploy.sh), data ~/fieldnotes-data.
+	redir /fieldnotes /fieldnotes/ permanent
+	handle_path /fieldnotes/* {
+		reverse_proxy localhost:8090 {
+			flush_interval -1
+		}
+	}
+
 	handle {
 		root * /home/laszlokopits/laz.dev/site
 		file_server
